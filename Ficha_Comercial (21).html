@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G&D — Ficha Comercial</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js">
+// ── CONFIG MODAL ──
+function openConfig() {
+  const modal = document.getElementById('configModal');
+  modal.style.display = 'flex';
+  const input = document.getElementById('urlInput');
+  input.value = APPS_SCRIPT_URL || '';
+  input.focus();
+}
+
+function closeConfig() {
+  document.getElementById('configModal').style.display = 'none';
+  document.getElementById('configError').style.display = 'none';
+}
+
+function saveConfig() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url || !url.startsWith('https://script.google.com')) {
+    const err = document.getElementById('configError');
+    err.style.display = 'block';
+    err.textContent = 'La URL debe empezar con https://script.google.com/macros/s/...';
+    return;
+  }
+  APPS_SCRIPT_URL = url;
+  localStorage.setItem('gd_script_url', url);
+  closeConfig();
+  fetchLiveData();
+}
+
+// Click outside to close
+document.getElementById('configModal').addEventListener('click', function(e) {
+  if (e.target === this) closeConfig();
+});
+
+// Gear icon in header
+document.querySelector('.header').insertAdjacentHTML('beforeend',
+  '<button onclick="openConfig()" title="Configurar conexión" style="background:none;border:none;color:#7a9ab5;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color .15s" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#7a9ab5\'">⚙</button>'
+);
+
+</script>
+<style>
+  :root {
+    --navy:   #0D1B2A;
+    --blue:   #1A4A7A;
+    --mid:    #2E75B6;
+    --light:  #7EB8E8;
+    --pale:   #D6E9F8;
+    --green:  #2D6A4F;
+    --green2: #52B788;
+    --green3: #D8F3DC;
+    --amber:  #E76F00;
+    --amber2: #FFF0DC;
+    --red:    #C1121F;
+    --red2:   #FFE0E0;
+    --bg:     #F4F7FA;
+    --card:   #FFFFFF;
+    --border: #DDE5EE;
+    --txt:    #1A2535;
+    --muted:  #6B7D92;
+    --mono:   'DM Mono', monospace;
+    --sans:   'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--txt); font-size: 14px; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--navy);
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 2px solid var(--blue);
+  }
+  .header-logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header-logo span { color: var(--light); }
+  .header-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--light);
+    letter-spacing: .5px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    background: var(--navy);
+    padding: 0 28px;
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #1e3450;
+  }
+  .tab {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .5px;
+    color: #7a9ab5;
+    padding: 10px 18px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .15s;
+    text-transform: uppercase;
+  }
+  .tab:hover { color: #fff; }
+  .tab.active { color: var(--light); border-bottom-color: var(--light); }
+
+  /* ── LAYOUT ── */
+  .page { display: none; padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ── FILTER BAR ── */
+  .filterbar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .filterbar label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .filterbar select {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--txt);
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    cursor: pointer;
+    outline: none;
+    transition: border .15s;
+  }
+  .filterbar select:focus { border-color: var(--mid); }
+  .filter-group { display: flex; align-items: center; gap: 7px; }
+  .btn-reset {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--muted); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; letter-spacing: .5px;
+    transition: all .15s;
+  }
+  .btn-reset:hover { color: var(--txt); border-color: var(--mid); }
+  .btn-export {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: #fff; background: var(--green); border: none;
+    border-radius: 6px; padding: 5px 14px; cursor: pointer; letter-spacing: .5px;
+    margin-left: auto;
+    transition: background .15s;
+  }
+  .btn-export:hover { background: var(--green2); }
+
+  /* ── KPI GRID ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--mid);
+  }
+  .kpi.green::before { background: var(--green2); }
+  .kpi.amber::before { background: var(--amber); }
+  .kpi.red::before   { background: var(--red); }
+  .kpi-label {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--txt);
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4;
+  }
+  .kpi-delta {
+    display: inline-block; font-family: var(--mono); font-size: 11px;
+    font-weight: 500; padding: 2px 7px; border-radius: 4px; margin-top: 5px;
+  }
+  .kpi-delta.up   { background: var(--green3); color: var(--green); }
+  .kpi-delta.down { background: var(--red2);   color: var(--red); }
+  .kpi-delta.flat { background: var(--pale);   color: var(--blue); }
+
+  /* ── COMPARISON BAR ── */
+  .comp-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+  }
+  .comp-item {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .comp-item-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  .comp-item-val   { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--txt); }
+  .comp-sep { width: 1px; height: 36px; background: var(--border); }
+  .comp-diff {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    padding: 4px 12px; border-radius: 6px;
+  }
+  .comp-diff.up   { background: var(--green3); color: var(--green); }
+  .comp-diff.down { background: var(--red2);   color: var(--red); }
+
+  /* ── GRID ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card-title {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: var(--muted); letter-spacing: 1.2px; text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .cw  { height: 220px; position: relative; }
+  .cw-sm { height: 180px; position: relative; }
+
+  /* ── TABLA OPS ── */
+  .ops-table { width: 100%; border-collapse: collapse; }
+  .ops-table th {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+    padding: 8px 12px; border-bottom: 2px solid var(--border); text-align: left;
+  }
+  .ops-table td {
+    padding: 9px 12px; border-bottom: 1px solid #EFF3F8;
+    font-size: 13px; vertical-align: middle;
+  }
+  .ops-table tr:last-child td { border-bottom: none; }
+  .ops-table tr:hover td { background: #F8FAFE; }
+  .proj-chip {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    font-weight: 500; padding: 3px 8px; border-radius: 4px; letter-spacing: .5px;
+  }
+  .val-cell { font-family: var(--mono); font-size: 13px; font-weight: 500; text-align: right; }
+  .date-cell { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .unit-cell { font-family: var(--mono); font-size: 12px; }
+  .vend-cell { font-size: 12px; color: var(--muted); }
+  .vend-cell.gyd { color: var(--blue); font-weight: 600; }
+  .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+
+  /* ── ABSORCIÓN ── */
+  .abs-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .abs-header {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;
+  }
+  .abs-name { font-weight: 600; font-size: 14px; color: var(--txt); }
+  .abs-pct  { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+  .abs-sub  { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  .abs-bar-outer { background: var(--bg); border-radius: 6px; height: 8px; margin-bottom: 12px; overflow: hidden; }
+  .abs-bar-inner { height: 100%; border-radius: 6px; transition: width .6s ease; }
+  .abs-tips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .abs-tip {
+    font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 4px;
+    background: var(--pale); color: var(--blue);
+  }
+  .abs-tip.warn { background: var(--amber2); color: var(--amber); }
+  .abs-tip.ok   { background: var(--green3); color: var(--green); }
+  .entrega-badge {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    padding: 2px 8px; border-radius: 4px; display: inline-block;
+  }
+  .entrega-badge.near { background: var(--red2); color: var(--red); }
+  .entrega-badge.far  { background: var(--pale); color: var(--blue); }
+
+  /* ── VENDEDORES ── */
+  .vend-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid #EFF3F8;
+  }
+  .vend-row:last-child { border-bottom: none; }
+  .vend-rank { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 20px; text-align: right; }
+  .vend-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 120px; }
+  .vend-name.gyd { color: var(--blue); }
+  .vend-bar-wrap { flex: 2; }
+  .vend-bar-bg { background: var(--bg); border-radius: 4px; height: 6px; }
+  .vend-bar-fill { height: 100%; border-radius: 4px; background: var(--mid); }
+  .vend-bar-fill.gyd { background: var(--navy); }
+  .vend-stat { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: right; width: 70px; }
+  .vend-stat strong { color: var(--txt); }
+
+  /* ── SPARKLINE ── */
+  .spark { height: 40px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    .page { padding: 16px; }
+    .header, .tabs { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">G<span>&</span>D — Ficha Comercial</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div id="statusBar" style="display:none"></div>
+    <div class="header-meta" id="headerMeta">Cargando...</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showPage('filtro',this)">Período</button>
+  <button class="tab" onclick="showPage('absorcion',this)">📦 Stock</button>
+  <button class="tab" onclick="showPage('vendedores',this)">Equipo</button>
+  <button class="tab" onclick="showPage('m2',this)">📐 USD/m²</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PÁGINA 1 — FILTRO / PERÍODO                        -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page active" id="page-filtro">
+
+  <div class="filterbar">
+    <div class="filter-group">
+      <label>Año</label>
+      <select id="fAnno" onchange="render()">
+        <option value="0">Todos</option>
+        <option value="2021">2021</option>
+        <option value="2022">2022</option>
+        <option value="2023">2023</option>
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Mes</label>
+      <select id="fMes" onchange="render()">
+        <option value="0">Todos</option>
+        <option value="1">Enero</option><option value="2">Febrero</option>
+        <option value="3">Marzo</option><option value="4">Abril</option>
+        <option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option>
+        <option value="9">Septiembre</option><option value="10">Octubre</option>
+        <option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Proyecto</label>
+      <select id="fProyecto" onchange="render()">
+        <option value="">Todos</option>
+        <option>AGUILAR</option><option>AREVALO</option><option>CHARCAS</option>
+        <option>DEFENSA</option><option>IRIGOYEN 1122</option><option>IRIGOYEN 1428</option>
+        <option>LMC</option><option>MEDRANO</option><option>MOCA</option>
+        <option>MOLDES</option><option>PARAGUAY</option><option>PIEDRAS</option>
+        <option>PUEYRREDON</option><option>SANTA FE</option><option>THAMES</option>
+        <option>VIAMONTE</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Vendedor</label>
+      <select id="fVendedor" onchange="render()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <button class="btn-reset" onclick="resetF()">↺ Reset</button>
+    <button class="btn-reset" onclick="fetchLiveData()" title="Actualizar datos desde Drive">⟳ Actualizar</button>
+    <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" style="margin-bottom:16px">
+    <div class="kpi" id="kpiOps">
+      <div class="kpi-label">Operaciones</div>
+      <div class="kpi-value" id="kOps">—</div>
+      <div class="kpi-sub" id="kOpsSub"></div>
+      <div class="kpi-delta" id="kOpsDelta" style="display:none"></div>
+    </div>
+    <div class="kpi" id="kpiValor">
+      <div class="kpi-label">Valor total</div>
+      <div class="kpi-value" id="kValor">—</div>
+      <div class="kpi-sub" id="kValorSub"></div>
+      <div class="kpi-delta" id="kValorDelta" style="display:none"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ticket promedio</div>
+      <div class="kpi-value" id="kTicket">—</div>
+      <div class="kpi-sub" id="kTicketSub"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ticket mediana</div>
+      <div class="kpi-value" id="kMediana">—</div>
+      <div class="kpi-sub" id="kMedianaSub"></div>
+    </div>
+  </div>
+
+  <!-- COMPARACIÓN -->
+  <div class="comp-bar" id="compBar" style="display:none">
+    <div class="comp-item">
+      <div class="comp-item-label">Período actual</div>
+      <div class="comp-item-val" id="compActLabel">—</div>
+    </div>
+    <div class="comp-sep"></div>
+    <div class="comp-item">
+      <div class="comp-item-label" id="compPrevLabel">Período anterior</div>
+      <div class="comp-item-val" id="compPrevVal">—</div>
+    </div>
+    <div class="comp-sep"></div>
+    <div id="compDiffOps" class="comp-diff">—</div>
+    <div id="compDiffVal" class="comp-diff">—</div>
+  </div>
+
+  <!-- MINI CHARTS -->
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Por proyecto</div>
+      <div class="cw-sm"><canvas id="cProj"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Por vendedor</div>
+      <div class="cw-sm"><canvas id="cVend"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABLA DETALLE -->
+  <div class="card">
+    <div class="card-title">
+      Operaciones del período
+      <span id="tCount" style="color:var(--muted);font-weight:400;margin-left:8px"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="ops-table" id="opsTable">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Proyecto</th>
+            <th>Unidad</th>
+            <th style="text-align:right">Valor USD</th>
+            <th>Vendedor</th>
+          </tr>
+        </thead>
+        <tbody id="opsTbody"></tbody>
+      </table>
+      <div class="empty-state" id="opsEmpty" style="display:none">
+        Sin operaciones para el período seleccionado
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PÁGINA 2 — ABSORCIÓN                               -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page" id="page-absorcion">
+
+  <!-- KPIs globales -->
+  <div class="kpi-grid" style="margin-bottom:16px" id="stockKpis"></div>
+
+  <!-- Cards por proyecto -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px" id="stockCards"></div>
+
+  <!-- Tabla cruzada proyecto × tipología -->
+  <div class="card">
+    <div class="card-title">Stock libre — proyectos × tipología</div>
+    <div style="overflow-x:auto">
+      <table class="ops-table" id="stockTable"></table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PÁGINA 3 — EQUIPO / VENDEDORES                     -->
+<!-- ══════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PÁGINA 3 — EQUIPO / VENDEDORES                     -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page" id="page-vendedores">
+
+  <div class="kpi-grid" style="margin-bottom:16px" id="vendKpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Ranking — Operaciones totales (2021–2026)</div>
+      <div id="vendRanking"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Distribución G&amp;D vs Brokers</div>
+      <div class="cw"><canvas id="cVendPie"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Actividad mensual — Operaciones cargadas</div>
+    <div class="cw"><canvas id="cVendMensual"></canvas></div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════
+// ── DATOS HISTÓRICOS (fallback offline) ──
+const HIST_OPS  = [{"f": "2022-06-02", "p": "MOCA", "u": "8P", "v": 54575, "vu": 54575, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2014}, {"f": "2022-06-08", "p": "MOCA", "u": "8S", "v": 54500, "vu": 54500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2019}, {"f": "2022-06-09", "p": "DEFENSA", "u": "7D", "v": 130000, "vu": 130000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-06-23", "p": "PIEDRAS", "u": "4H", "v": 123960, "vu": 123960, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-07-08", "p": "MEDRANO", "u": "2B", "v": 172000, "vu": 172000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 7, "blanq": false, "tip": "3 AMB", "m2pond": 74.5, "coch": false, "multi": false, "usd_m2": 2309}, {"f": "2022-08-01", "p": "CHARCAS", "u": "1D", "v": 92000, "vu": 92000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-10-21", "p": "DEFENSA", "u": "6C", "v": 88500, "vu": 88500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-08-03", "p": "MOCA", "u": "13G", "v": 97090, "vu": 97090, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": "2 AMB", "m2pond": 45.1, "coch": false, "multi": false, "usd_m2": 2153}, {"f": "2022-08-03", "p": "MOLDES", "u": "N709", "v": 152618, "vu": 152618, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": "2 AMB", "m2pond": 54.25, "coch": false, "multi": false, "usd_m2": 2813}, {"f": "2022-08-04", "p": "CHARCAS", "u": "5C", "v": 116000, "vu": 116000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-08-05", "p": "AREVALO", "u": "305", "v": 91500, "vu": 91500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-08-05", "p": "MOCA", "u": "3Q", "v": 45000, "vu": 45000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1661}, {"f": "2022-08-11", "p": "IRIGOYEN 1428", "u": "13D", "v": 60000, "vu": 60000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-08-12", "p": "MOCA", "u": "8O", "v": 47500, "vu": 47500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1753}, {"f": "2022-08-28", "p": "CHARCAS", "u": "PB C", "v": 70000, "vu": 70000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-08-03", "p": "MOCA", "u": "8i", "v": 57600, "vu": 57600, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2125}, {"f": "2021-11-03", "p": "MOCA", "u": "2N", "v": 55800, "vu": 55800, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 31.81, "coch": false, "multi": false, "usd_m2": 1754}, {"f": "2021-11-03", "p": "PARAGUAY", "u": "Local 2", "v": 270000, "vu": 270000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-11-10", "p": "MOCA", "u": "4Q", "v": 49200, "vu": 49200, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1815}, {"f": "2021-12-14", "p": "MOCA", "u": "8J", "v": 80750, "vu": 80750, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 41.05, "coch": false, "multi": false, "usd_m2": 1967}, {"f": "2021-12-15", "p": "MOCA", "u": "7P", "v": 51300, "vu": 51300, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1893}, {"f": "2021-12-15", "p": "PARAGUAY", "u": "502;503", "v": 202600, "vu": 202600, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": true, "usd_m2": null}, {"f": "2021-12-16", "p": "MOLDES", "u": "S207", "v": 69500, "vu": 69500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 28.45, "coch": false, "multi": false, "usd_m2": 2443}, {"f": "2022-04-19", "p": "IRIGOYEN 1428", "u": "13H", "v": 53000, "vu": 53000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-12-28", "p": "PIEDRAS", "u": "5B", "v": 60000, "vu": 60000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-01-04", "p": "MOCA", "u": "7R", "v": 54023, "vu": 54023, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1993}, {"f": "2022-01-05", "p": "MEDRANO", "u": "1C", "v": 112000, "vu": 112000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 1, "blanq": false, "tip": "2 AMB", "m2pond": 48.0, "coch": false, "multi": false, "usd_m2": 2333}, {"f": "2022-01-06", "p": "THAMES", "u": "1D", "v": 290000, "vu": 290000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-01-07", "p": "MEDRANO", "u": "2T", "v": 154000, "vu": 154000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 1, "blanq": false, "tip": "3 AMB", "m2pond": 58.5, "coch": false, "multi": false, "usd_m2": 2632}, {"f": "2022-02-03", "p": "IRIGOYEN 1428", "u": "11D", "v": 55000, "vu": 55000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-04-18", "p": "MOCA", "u": "6D", "v": 54600, "vu": 54600, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2015}, {"f": "2021-12-23", "p": "IRIGOYEN 1428", "u": "11C", "v": 56000, "vu": 56000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-10-24", "p": "MOLDES", "u": "S812 + C14", "v": 234490, "vu": 234490, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 10, "blanq": false, "tip": "3 AMB", "m2pond": 74.42, "coch": true, "multi": false, "usd_m2": 2748}, {"f": "2022-10-26", "p": "PARAGUAY", "u": "802", "v": 98000, "vu": 98000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-10-28", "p": "IRIGOYEN 1428", "u": "5G", "v": 59500, "vu": 59500, "vc": 0, "vd": "Vivono Prop", "y": 2022, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-10-28", "p": "IRIGOYEN 1428", "u": "6G", "v": 59500, "vu": 59500, "vc": 0, "vd": "Vivono Prop", "y": 2022, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-11-01", "p": "PARAGUAY", "u": "902", "v": 148295, "vu": 148295, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-11-02", "p": "MOLDES", "u": "S204", "v": 144000, "vu": 144000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": "2 AMB", "m2pond": 53.5, "coch": false, "multi": false, "usd_m2": 2692}, {"f": "2022-11-07", "p": "MEDRANO", "u": "3N", "v": 65000, "vu": 65000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2500}, {"f": "2022-11-07", "p": "MEDRANO", "u": "3M", "v": 65000, "vu": 65000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2500}, {"f": "2022-11-14", "p": "MOCA", "u": "5S", "v": 56600, "vu": 56600, "vc": 0, "vd": "Vela Prop", "y": 2022, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2096}, {"f": "2022-11-24", "p": "MOLDES", "u": "S403", "v": 82450, "vu": 82450, "vc": 0, "vd": "Castezx", "y": 2022, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 29.25, "coch": false, "multi": false, "usd_m2": 2819}, {"f": "2022-11-24", "p": "PIEDRAS", "u": "4F", "v": 51000, "vu": 51000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-12-05", "p": "CHARCAS", "u": "1A", "v": 126000, "vu": 126000, "vc": 0, "vd": "Nira Brokers", "y": 2022, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-11-07", "p": "AREVALO", "u": "902", "v": 83000, "vu": 83000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-09-07", "p": "MOCA", "u": "7C", "v": 55370, "vu": 55370, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2043}, {"f": "2022-09-07", "p": "MOCA", "u": "7D", "v": 55370, "vu": 55370, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2043}, {"f": "2022-09-08", "p": "MOCA", "u": "2I", "v": 42000, "vu": 42000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 1594}, {"f": "2022-09-12", "p": "MEDRANO", "u": "2S", "v": 160000, "vu": 160000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": "3 AMB", "m2pond": 64.0, "coch": false, "multi": false, "usd_m2": 2500}, {"f": "2022-09-16", "p": "AREVALO", "u": "610", "v": 81840, "vu": 81840, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-09-22", "p": "DEFENSA", "u": "5C", "v": 79500, "vu": 79500, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-10-06", "p": "AREVALO", "u": "901", "v": 73800, "vu": 73800, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-10-14", "p": "CHARCAS", "u": "1E", "v": 83000, "vu": 83000, "vc": 0, "vd": "Pablo Casal", "y": 2022, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-10-11", "p": "MOCA", "u": "2O", "v": 54133, "vu": 54133, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 29.74, "coch": false, "multi": false, "usd_m2": 1820}, {"f": "2022-10-11", "p": "MOCA", "u": "9S", "v": 54133, "vu": 54133, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 26.05, "coch": false, "multi": false, "usd_m2": 2078}, {"f": "2022-10-13", "p": "MOCA", "u": "3N", "v": 48900, "vu": 48900, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1804}, {"f": "2022-10-13", "p": "MOCA", "u": "3M", "v": 48900, "vu": 48900, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1804}, {"f": "2022-10-13", "p": "MOLDES", "u": "N701", "v": 58570, "vu": 58570, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 10, "blanq": false, "tip": "3 AMB", "m2pond": 75.55, "coch": false, "multi": false, "usd_m2": 775}, {"f": "2022-10-13", "p": "MOCA", "u": "7Q", "v": 50000, "vu": 50000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1845}, {"f": "2022-10-13", "p": "MOCA", "u": "7S", "v": 50000, "vu": 50000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 1852}, {"f": "2022-10-11", "p": "MOCA", "u": "2M", "v": 54133, "vu": 54133, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 31.81, "coch": false, "multi": false, "usd_m2": 1702}, {"f": "2021-03-16", "p": "IRIGOYEN 1428", "u": "3E", "v": 54500, "vu": 54500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-05-05", "p": "PARAGUAY", "u": "4C", "v": 61200, "vu": 61200, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-03-26", "p": "MOLDES", "u": "N506", "v": 67675, "vu": 67675, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.7, "coch": false, "multi": false, "usd_m2": 2358}, {"f": "2021-03-05", "p": "MOLDES", "u": "S711", "v": 80373, "vu": 80373, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 29.25, "coch": false, "multi": false, "usd_m2": 2748}, {"f": "2021-05-15", "p": "IRIGOYEN 1428", "u": "13E", "v": 55000, "vu": 55000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-03-03", "p": "MOLDES", "u": "N208", "v": 63615, "vu": 63615, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.3, "coch": false, "multi": false, "usd_m2": 2248}, {"f": "2021-05-19", "p": "MOLDES", "u": "N205", "v": 68773, "vu": 68773, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 28.3, "coch": false, "multi": false, "usd_m2": 2430}, {"f": "2021-05-20", "p": "PIEDRAS", "u": "4A Piedras", "v": 103000, "vu": 103000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-02-26", "p": "MOLDES", "u": "S803", "v": 75028, "vu": 75028, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 28.2, "coch": false, "multi": false, "usd_m2": 2661}, {"f": "2021-08-19", "p": "PIEDRAS", "u": "3D", "v": 58700, "vu": 58700, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-04-16", "p": "PARAGUAY", "u": "4A", "v": 90000, "vu": 90000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-02-26", "p": "MOLDES", "u": "S209 + S709", "v": 287066, "vu": 287066, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": true, "usd_m2": null}, {"f": "2021-03-02", "p": "MOLDES", "u": "S807", "v": 75921, "vu": 75921, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.65, "coch": false, "multi": false, "usd_m2": 2650}, {"f": "2021-06-19", "p": "IRIGOYEN 1428", "u": "14B", "v": 60500, "vu": 60500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-06-24", "p": "AREVALO", "u": "809", "v": 89500, "vu": 89500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-08-13", "p": "MOLDES", "u": "N414", "v": 82340, "vu": 82340, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 32.15, "coch": false, "multi": false, "usd_m2": 2561}, {"f": "2021-06-26", "p": "IRIGOYEN 1428", "u": "9D", "v": 57000, "vu": 57000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-06-28", "p": "PARAGUAY", "u": "105", "v": 60000, "vu": 60000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-07-16", "p": "IRIGOYEN 1428", "u": "14E", "v": 61500, "vu": 61500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-07-18", "p": "IRIGOYEN 1428", "u": "14F", "v": 59900, "vu": 59900, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-07-22", "p": "MOCA", "u": "9U", "v": 71400, "vu": 71400, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": "2 AMB", "m2pond": 39.85, "coch": false, "multi": false, "usd_m2": 1792}, {"f": "2021-07-23", "p": "AREVALO", "u": "810", "v": 86600, "vu": 86600, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-08-02", "p": "MOCA", "u": "8U", "v": 67500, "vu": 67500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": "2 AMB", "m2pond": 39.65, "coch": false, "multi": false, "usd_m2": 1702}, {"f": "2021-03-02", "p": "MOLDES", "u": "S405", "v": 71436, "vu": 71436, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.35, "coch": false, "multi": false, "usd_m2": 2520}, {"f": "2021-07-28", "p": "PARAGUAY", "u": "205", "v": 63000, "vu": 63000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-04-16", "p": "IRIGOYEN 1428", "u": "3H + C17", "v": 62000, "vu": 62000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2021-05-28", "p": "IRIGOYEN 1428", "u": "10C", "v": 58500, "vu": 58500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-10-06", "p": "MOCA", "u": "8Q", "v": 49300, "vu": 49300, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1819}, {"f": "2021-09-28", "p": "MOLDES", "u": "N712", "v": 190000, "vu": 190000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": "3 AMB", "m2pond": 73.8, "coch": false, "multi": false, "usd_m2": 2575}, {"f": "2021-01-04", "p": "IRIGOYEN 1428", "u": "13F", "v": 56000, "vu": 56000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-01-08", "p": "IRIGOYEN 1428", "u": "11H", "v": 57500, "vu": 57500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-03-25", "p": "MOLDES", "u": "N206", "v": 69870, "vu": 69870, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.7, "coch": false, "multi": false, "usd_m2": 2434}, {"f": "2021-09-27", "p": "IRIGOYEN 1428", "u": "12B", "v": 61000, "vu": 61000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-09-23", "p": "IRIGOYEN 1428", "u": "14D", "v": 57000, "vu": 57000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-09-17", "p": "IRIGOYEN 1428", "u": "3G", "v": 51000, "vu": 51000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-09-14", "p": "CHARCAS", "u": "3B", "v": 104000, "vu": 104000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-08-28", "p": "DEFENSA", "u": "1C", "v": 60000, "vu": 60000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-08-20", "p": "MOCA", "u": "9P", "v": 46288, "vu": 46288, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 26.05, "coch": false, "multi": false, "usd_m2": 1777}, {"f": "2021-08-19", "p": "MOCA", "u": "2L", "v": 53159, "vu": 53159, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 31.81, "coch": false, "multi": false, "usd_m2": 1671}, {"f": "2021-08-20", "p": "MOCA", "u": "9Q", "v": 46288, "vu": 46288, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 26.05, "coch": false, "multi": false, "usd_m2": 1777}, {"f": "2021-02-03", "p": "AREVALO", "u": "510 + C21", "v": 105000, "vu": 105000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2021-02-25", "p": "MOLDES", "u": "S208", "v": 67528, "vu": 67528, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 28.35, "coch": false, "multi": false, "usd_m2": 2382}, {"f": "2021-02-23", "p": "MOLDES", "u": "N412 + C22 + C23", "v": 241783, "vu": 241783, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": "3 AMB", "m2pond": 73.8, "coch": true, "multi": false, "usd_m2": 2870}, {"f": "2025-02-06", "p": "MOCA", "u": "16F", "v": 221700, "vu": 221700, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 2, "blanq": false, "tip": "4 AMB", "m2pond": 88.28, "coch": false, "multi": false, "usd_m2": 2511}, {"f": "2024-08-12", "p": "IRIGOYEN 1428", "u": "14D", "v": 87000, "vu": 87000, "vc": 0, "vd": "Irene Vitaloni", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-08-16", "p": "PIEDRAS", "u": "3C", "v": 55000, "vu": 55000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-08-12", "p": "MOCA", "u": "3V", "v": 72000, "vu": 72000, "vc": 0, "vd": "Leonel Zizzetta", "y": 2024, "m": 8, "blanq": false, "tip": "2 AMB", "m2pond": 40.48, "coch": false, "multi": false, "usd_m2": 1779}, {"f": "2024-08-16", "p": "DEFENSA", "u": "2D", "v": 130000, "vu": 130000, "vc": 0, "vd": "Ana Cardales", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-08-12", "p": "IRIGOYEN 1428", "u": "3C", "v": 53000, "vu": 53000, "vc": 0, "vd": "Irene Vitaloni", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-08-19", "p": "MEDRANO", "u": "2P", "v": 83500, "vu": 83500, "vc": 0, "vd": "Fer Campitelli", "y": 2024, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 3212}, {"f": "2024-10-07", "p": "IRIGOYEN 1428", "u": "4C", "v": 60000, "vu": 60000, "vc": 0, "vd": "Jero Bidegain", "y": 2024, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-10-07", "p": "MOLDES", "u": "S907", "v": 106300, "vu": 106300, "vc": 0, "vd": "Agustina Storni", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 33.38, "coch": false, "multi": false, "usd_m2": 3185}, {"f": "2024-10-09", "p": "IRIGOYEN 1428", "u": "2B", "v": 68500, "vu": 68500, "vc": 0, "vd": "Fera Propiedades", "y": 2024, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-10-16", "p": "MOLDES", "u": "S414,", "v": 106900, "vu": 106900, "vc": 0, "vd": "Idea Cinco", "y": 2024, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-10-16", "p": "MOLDES", "u": "S514", "v": 108000, "vu": 108000, "vc": 0, "vd": "Idea Cinco", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 33.85, "coch": false, "multi": false, "usd_m2": 3191}, {"f": "2024-10-16", "p": "MOLDES", "u": "S513", "v": 108000, "vu": 108000, "vc": 0, "vd": "Idea Cinco", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 33.85, "coch": false, "multi": false, "usd_m2": 3191}, {"f": "2024-10-21", "p": "MOCA", "u": "5B", "v": 60000, "vu": 60000, "vc": 0, "vd": "Krell Brokers", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2222}, {"f": "2024-10-21", "p": "AGUILAR", "u": "402", "v": 118400, "vu": 118400, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 44.79, "coch": false, "multi": false, "usd_m2": 2643}, {"f": "2024-08-08", "p": "MOCA", "u": "8M", "v": 61700, "vu": 61700, "vc": 0, "vd": "Tovado Propiedades", "y": 2024, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2277}, {"f": "2024-10-22", "p": "AGUILAR", "u": "501", "v": 123100, "vu": 123100, "vc": 0, "vd": "Vero Ferdman", "y": 2024, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 45.77, "coch": false, "multi": false, "usd_m2": 2690}, {"f": "2024-10-22", "p": "MOLDES", "u": "N713", "v": 104000, "vu": 104000, "vc": 0, "vd": "Castex", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 31.85, "coch": false, "multi": false, "usd_m2": 3265}, {"f": "2024-10-22", "p": "MOLDES", "u": "N702", "v": 101500, "vu": 101500, "vc": 0, "vd": "Maxre", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 30.6, "coch": false, "multi": false, "usd_m2": 3317}, {"f": "2024-10-28", "p": "MOCA", "u": "13i", "v": 112900, "vu": 112900, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 45.1, "coch": false, "multi": false, "usd_m2": 2503}, {"f": "2024-11-01", "p": "AGUILAR", "u": "503", "v": 75300, "vu": 75300, "vc": 0, "vd": "Real Capital", "y": 2024, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 34.25, "coch": false, "multi": false, "usd_m2": 2199}, {"f": "2024-11-01", "p": "AGUILAR", "u": "403", "v": 74000, "vu": 74000, "vc": 0, "vd": "Real Capital", "y": 2024, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 34.25, "coch": false, "multi": false, "usd_m2": 2161}, {"f": "2024-10-08", "p": "MOLDES", "u": "N503", "v": 97000, "vu": 97000, "vc": 0, "vd": "Castex", "y": 2024, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 30.8, "coch": false, "multi": false, "usd_m2": 3149}, {"f": "2024-08-20", "p": "LMC", "u": "501", "v": 105000, "vu": 105000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 34.1, "coch": false, "multi": false, "usd_m2": 3079}, {"f": "2024-09-03", "p": "IRIGOYEN 1428", "u": "10A", "v": 108100, "vu": 108100, "vc": 0, "vd": "Vanina Nacaratti", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-03", "p": "IRIGOYEN 1428", "u": "7C", "v": 57000, "vu": 57000, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-04", "p": "MOLDES", "u": "S808", "v": 90000, "vu": 90000, "vc": 0, "vd": "Intelligent", "y": 2024, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 28.35, "coch": false, "multi": false, "usd_m2": 3175}, {"f": "2024-09-04", "p": "MEDRANO", "u": "3E", "v": 81700, "vu": 81700, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 3142}, {"f": "2024-09-05", "p": "MEDRANO", "u": "2F", "v": 85000, "vu": 85000, "vc": 0, "vd": "Jeronimo Bidegain", "y": 2024, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 3269}, {"f": "2024-09-17", "p": "MOCA", "u": "8B", "v": 61500, "vu": 61500, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2278}, {"f": "2024-10-02", "p": "IRIGOYEN 1428", "u": "9B", "v": 71500, "vu": 71500, "vc": 0, "vd": "Vani Nacaratti", "y": 2024, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-16", "p": "MOCA", "u": "7V", "v": 79000, "vu": 79000, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 9, "blanq": false, "tip": "2 AMB", "m2pond": 40.48, "coch": false, "multi": false, "usd_m2": 1952}, {"f": "2024-09-11", "p": "IRIGOYEN 1428", "u": "10B", "v": 71000, "vu": 71000, "vc": 0, "vd": "Maxre", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-23", "p": "PARAGUAY", "u": "103", "v": 145300, "vu": 145300, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-24", "p": "MOLDES", "u": "N703", "v": 102900, "vu": 102900, "vc": 0, "vd": "Ib Realty", "y": 2024, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 30.8, "coch": false, "multi": false, "usd_m2": 3341}, {"f": "2024-09-27", "p": "MOCA", "u": "15J, C99", "v": 134500, "vu": 134500, "vc": 0, "vd": "Tovado Propiedades", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-27", "p": "IRIGOYEN 1428", "u": "12C", "v": 63400, "vu": 63400, "vc": 0, "vd": "Bellagamba", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-26", "p": "IRIGOYEN 1428", "u": "8B", "v": 71000, "vu": 71000, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-09-18", "p": "MOCA", "u": "18F, 6V Y C27", "v": 305000, "vu": 305000, "vc": 0, "vd": "Rosana Assanelli", "y": 2024, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-06-10", "p": "MEDRANO", "u": "4K", "v": 144000, "vu": 144000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": "2 AMB", "m2pond": 44.5, "coch": false, "multi": false, "usd_m2": 3236}, {"f": "2024-06-07", "p": "LMC", "u": "302", "v": 96700, "vu": 96700, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 30.7, "coch": false, "multi": false, "usd_m2": 3150}, {"f": "2024-06-06", "p": "MEDRANO", "u": "2M", "v": 81100, "vu": 81100, "vc": 0, "vd": "Rodrigo Costa", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 3119}, {"f": "2024-06-06", "p": "MEDRANO", "u": "2N", "v": 81100, "vu": 81100, "vc": 0, "vd": "Rodrigo Costa", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 3119}, {"f": "2024-06-06", "p": "MEDRANO", "u": "1S", "v": 205000, "vu": 205000, "vc": 0, "vd": "Ginevra Prop", "y": 2024, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-05-23", "p": "IRIGOYEN 1428", "u": "7D", "v": 85000, "vu": 85000, "vc": 0, "vd": "Ginevra Prop", "y": 2024, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-05-22", "p": "MOCA", "u": "8i", "v": 60500, "vu": 60500, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2232}, {"f": "2024-07-10", "p": "IRIGOYEN 1428", "u": "1C", "v": 60000, "vu": 60000, "vc": 0, "vd": "Irene Vitaloni", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-05-20", "p": "MEDRANO", "u": "1T", "v": 177000, "vu": 177000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 5, "blanq": false, "tip": "3 AMB", "m2pond": 58.5, "coch": false, "multi": false, "usd_m2": 3026}, {"f": "2024-05-20", "p": "MOCA", "u": "3U", "v": 72300, "vu": 72300, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 5, "blanq": false, "tip": "2 AMB", "m2pond": 39.65, "coch": false, "multi": false, "usd_m2": 1823}, {"f": "2024-05-17", "p": "MOCA", "u": "5L", "v": 57800, "vu": 57800, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2133}, {"f": "2024-05-17", "p": "MOCA", "u": "4P", "v": 58600, "vu": 58600, "vc": 0, "vd": "Graciela Viola", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2162}, {"f": "2024-05-17", "p": "MOCA", "u": "4O", "v": 57200, "vu": 57200, "vc": 0, "vd": "Graciela Viola", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2111}, {"f": "2024-05-13", "p": "MOLDES", "u": "S806", "v": 89000, "vu": 89000, "vc": 0, "vd": "Botts Propiedades", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 28.65, "coch": false, "multi": false, "usd_m2": 3106}, {"f": "2024-05-13", "p": "MEDRANO", "u": "2E", "v": 77200, "vu": 77200, "vc": 0, "vd": "Javier Peñalver", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2969}, {"f": "2024-05-10", "p": "MOCA", "u": "3F", "v": 50800, "vu": 50800, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1875}, {"f": "2024-05-10", "p": "MEDRANO", "u": "2O", "v": 76000, "vu": 76000, "vc": 0, "vd": "Paula Lozada", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2923}, {"f": "2024-05-07", "p": "IRIGOYEN 1428", "u": "11B", "v": 65000, "vu": 65000, "vc": 0, "vd": "Vanina Nacaratti", "y": 2024, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-05-06", "p": "MOCA", "u": "6P", "v": 57200, "vu": 57200, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2111}, {"f": "2024-05-03", "p": "MOCA", "u": "3D", "v": 47530, "vu": 47530, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1754}, {"f": "2024-05-20", "p": "MEDRANO", "u": "2i", "v": 77500, "vu": 77500, "vc": 0, "vd": "Real Capital", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2981}, {"f": "2024-08-07", "p": "IRIGOYEN 1428", "u": "4B", "v": 66900, "vu": 66900, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-08-07", "p": "IRIGOYEN 1428", "u": "7B", "v": 69200, "vu": 69200, "vc": 0, "vd": "Bellagamba", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-08-07", "p": "MOLDES", "u": "S703 y Cochera 62", "v": 124500, "vu": 124500, "vc": 0, "vd": "Martu Oriozabala", "y": 2024, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2024-07-28", "p": "MOCA", "u": "8N", "v": 61700, "vu": 61700, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2277}, {"f": "2024-07-26", "p": "MOCA", "u": "4G", "v": 54300, "vu": 54300, "vc": 0, "vd": "Flavia Jalif", "y": 2024, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2004}, {"f": "2024-07-24", "p": "IRIGOYEN 1428", "u": "2D", "v": 75000, "vu": 75000, "vc": 0, "vd": "Ana Cardales", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-07-18", "p": "IRIGOYEN 1428", "u": "11C", "v": 58000, "vu": 58000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-07-10", "p": "IRIGOYEN 1428", "u": "6C", "v": 56400, "vu": 56400, "vc": 0, "vd": "Bellagamba", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-07-10", "p": "IRIGOYEN 1428", "u": "2C", "v": 49700, "vu": 49700, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-11-01", "p": "AGUILAR", "u": "603", "v": 76500, "vu": 76500, "vc": 0, "vd": "Real Capital", "y": 2024, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 34.25, "coch": false, "multi": false, "usd_m2": 2234}, {"f": "2024-07-04", "p": "PIEDRAS", "u": "1G", "v": 80000, "vu": 80000, "vc": 0, "vd": "Rosana Assanelli", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-06-10", "p": "MEDRANO", "u": "2G", "v": 75000, "vu": 75000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2885}, {"f": "2024-07-03", "p": "MOCA", "u": "5i", "v": 57700, "vu": 57700, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2129}, {"f": "2024-07-01", "p": "LMC", "u": "203", "v": 169000, "vu": 169000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 7, "blanq": false, "tip": "2 AMB", "m2pond": 60.52, "coch": false, "multi": false, "usd_m2": 2792}, {"f": "2024-06-27", "p": "IRIGOYEN 1428", "u": "11A", "v": 85000, "vu": 85000, "vc": 0, "vd": "Maxre", "y": 2024, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-06-27", "p": "MOLDES", "u": "N213", "v": 96915, "vu": 96915, "vc": 0, "vd": "Castex", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 31.85, "coch": false, "multi": false, "usd_m2": 3043}, {"f": "2024-06-27", "p": "MOCA", "u": "6M", "v": 58400, "vu": 58400, "vc": 0, "vd": "Cecilia H Remax", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2155}, {"f": "2024-06-26", "p": "MOCA", "u": "6O", "v": 58000, "vu": 58000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2140}, {"f": "2024-06-26", "p": "MOCA", "u": "7O", "v": 59000, "vu": 59000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2177}, {"f": "2024-06-26", "p": "MOCA", "u": "13A", "v": 112000, "vu": 112000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": "2 AMB", "m2pond": 51.1, "coch": false, "multi": false, "usd_m2": 2192}, {"f": "2024-06-18", "p": "IRIGOYEN 1428", "u": "9C", "v": 58200, "vu": 58200, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-06-14", "p": "PARAGUAY", "u": "702", "v": 150000, "vu": 150000, "vc": 0, "vd": "Daniela Chiappe", "y": 2024, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-06-11", "p": "MOLDES", "u": "N404 + C64", "v": 201760, "vu": 201760, "vc": 0, "vd": "Castex", "y": 2024, "m": 6, "blanq": false, "tip": "2 AMB", "m2pond": 51.55, "coch": true, "multi": false, "usd_m2": 3332}, {"f": "2024-06-11", "p": "IRIGOYEN 1428", "u": "5C", "v": 52000, "vu": 52000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-07-04", "p": "PIEDRAS", "u": "3H", "v": 120000, "vu": 120000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-05-28", "p": "MOLDES", "u": "213", "v": 110000, "vu": 110000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-05-27", "p": "SANTA FE", "u": "702", "v": 127800, "vu": 127800, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 34.44, "coch": false, "multi": false, "usd_m2": 3711}, {"f": "2025-05-23", "p": "MOCA", "u": "6E", "v": 68000, "vu": 68000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2509}, {"f": "2025-05-22", "p": "IRIGOYEN 1428", "u": "13D", "v": 96000, "vu": 96000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-05-14", "p": "SANTA FE", "u": "703", "v": 223000, "vu": 223000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": "3 AMB", "m2pond": 62.19, "coch": false, "multi": false, "usd_m2": 3586}, {"f": "2025-05-13", "p": "IRIGOYEN 1428", "u": "5D", "v": 84000, "vu": 84000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-05-13", "p": "IRIGOYEN 1428", "u": "4D", "v": 82500, "vu": 82500, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-11-07", "p": "SANTA FE", "u": "1104", "v": 114200, "vu": 114200, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 3912}, {"f": "2025-04-16", "p": "MEDRANO", "u": "1A, C7", "v": 245500, "vu": 245500, "vc": 0, "vd": "Josefina Arnalfe", "y": 2025, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-02-25", "p": "MOLDES", "u": "S406", "v": 71562, "vu": 71562, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 28.45, "coch": false, "multi": false, "usd_m2": 2515}, {"f": "2024-12-26", "p": "MOCA", "u": "6G", "v": 63000, "vu": 63000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2325}, {"f": "2025-12-01", "p": "IRIGOYEN 1428", "u": "6D", "v": 89000, "vu": 89000, "vc": 0, "vd": "Ginevra Prop", "y": 2025, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-12-05", "p": "IRIGOYEN 1428", "u": "8A, 9A", "v": 207000, "vu": 207000, "vc": 0, "vd": "Soldati Propiedades", "y": 2025, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-12-05", "p": "LMC", "u": "103", "v": 112500, "vu": 112500, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 36.35, "coch": false, "multi": false, "usd_m2": 3095}, {"f": "2025-04-01", "p": "MEDRANO", "u": "3J", "v": 141500, "vu": 141500, "vc": 0, "vd": "Soldati", "y": 2025, "m": 4, "blanq": false, "tip": "2 AMB", "m2pond": 45.5, "coch": false, "multi": false, "usd_m2": 3110}, {"f": "2025-03-28", "p": "MOCA", "u": "15A", "v": 125590, "vu": 125590, "vc": 0, "vd": "Vanina Naccaratti", "y": 2025, "m": 3, "blanq": false, "tip": "2 AMB", "m2pond": 49.26, "coch": false, "multi": false, "usd_m2": 2550}, {"f": "2025-03-28", "p": "MOCA", "u": "4K", "v": 157985, "vu": 157985, "vc": 0, "vd": "Vanina Naccaratti", "y": 2025, "m": 3, "blanq": false, "tip": "3 AMB", "m2pond": 68.15, "coch": false, "multi": false, "usd_m2": 2318}, {"f": "2025-12-05", "p": "MEDRANO", "u": "CH9", "v": 16000, "vu": 16000, "vc": 0, "vd": "Maxre", "y": 2025, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-03-28", "p": "MOCA", "u": "4J", "v": 96225, "vu": 96225, "vc": 0, "vd": "Vanina Naccaratti", "y": 2025, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 41.05, "coch": false, "multi": false, "usd_m2": 2344}, {"f": "2025-09-28", "p": "LMC", "u": "104", "v": 137700, "vu": 137700, "vc": 0, "vd": "Vero Ferdman", "y": 2025, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 40.7, "coch": false, "multi": false, "usd_m2": 3383}, {"f": "2025-09-11", "p": "MEDRANO", "u": "CH8", "v": 14500, "vu": 14500, "vc": 0, "vd": "Maxre", "y": 2025, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-08-26", "p": "MEDRANO", "u": "CH4", "v": 20500, "vu": 20500, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-10-07", "p": "MEDRANO", "u": "CH 36", "v": 21500, "vu": 21500, "vc": 0, "vd": "Guillermo Coldwell Bankers", "y": 2025, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-10-09", "p": "MOCA", "u": "11F + C45", "v": 218700, "vu": 218700, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 10, "blanq": false, "tip": "3 AMB", "m2pond": 77.38, "coch": true, "multi": false, "usd_m2": 2439}, {"f": "2025-10-20", "p": "IRIGOYEN 1428", "u": "1B", "v": 67500, "vu": 67500, "vc": 0, "vd": "Fer Campitelli", "y": 2025, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-10-28", "p": "MEDRANO", "u": "2K", "v": 150500, "vu": 150500, "vc": 0, "vd": "Paula Lozada", "y": 2025, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 49.0, "coch": false, "multi": false, "usd_m2": 3071}, {"f": "2025-08-06", "p": "PUEYRREDON", "u": "504", "v": 141400, "vu": 141400, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 8, "blanq": false, "tip": "2 AMB", "m2pond": 44.29, "coch": false, "multi": false, "usd_m2": 3193}, {"f": "2025-07-24", "p": "MOCA", "u": "7B", "v": 64300, "vu": 64300, "vc": 0, "vd": "Leo Colusso", "y": 2025, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2381}, {"f": "2025-05-28", "p": "SANTA FE", "u": "1002", "v": 131000, "vu": 131000, "vc": 0, "vd": "Bellagamba", "y": 2025, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 34.44, "coch": false, "multi": false, "usd_m2": 3804}, {"f": "2025-07-15", "p": "MOCA", "u": "17D, C30", "v": 245000, "vu": 245000, "vc": 0, "vd": "Leo Colusso", "y": 2025, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-07-14", "p": "AGUILAR", "u": "103", "v": 93100, "vu": 93100, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 36.57, "coch": false, "multi": false, "usd_m2": 2546}, {"f": "2025-07-08", "p": "PUEYRREDON", "u": "303, 403", "v": 175200, "vu": 175200, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-07-07", "p": "PUEYRREDON", "u": "304", "v": 112300, "vu": 112300, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 7, "blanq": false, "tip": "2 AMB", "m2pond": 44.29, "coch": false, "multi": false, "usd_m2": 2536}, {"f": "2025-07-03", "p": "MOCA", "u": "3A, C46", "v": 168200, "vu": 168200, "vc": 0, "vd": "Leo Colusso", "y": 2025, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-07-02", "p": "AGUILAR", "u": "502", "v": 138000, "vu": 138000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 7, "blanq": false, "tip": "2 AMB", "m2pond": 41.38, "coch": false, "multi": false, "usd_m2": 3335}, {"f": "2025-06-24", "p": "MOCA", "u": "4U", "v": 88000, "vu": 88000, "vc": 0, "vd": "Soledad Iansavra", "y": 2025, "m": 6, "blanq": false, "tip": "2 AMB", "m2pond": 39.65, "coch": false, "multi": false, "usd_m2": 2219}, {"f": "2025-06-12", "p": "PUEYRREDON", "u": "404", "v": 114400, "vu": 114400, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 6, "blanq": false, "tip": "2 AMB", "m2pond": 44.29, "coch": false, "multi": false, "usd_m2": 2583}, {"f": "2025-06-11", "p": "MOLDES", "u": "S102", "v": 89500, "vu": 89500, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 6, "blanq": false, "tip": "MONO", "m2pond": 26.7, "coch": false, "multi": false, "usd_m2": 3352}, {"f": "2025-06-06", "p": "AGUILAR", "u": "601", "v": 160000, "vu": 160000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 6, "blanq": false, "tip": "2 AMB", "m2pond": 45.77, "coch": false, "multi": false, "usd_m2": 3496}, {"f": "2025-07-21", "p": "MOCA", "u": "2C", "v": 60000, "vu": 60000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 2277}, {"f": "2024-12-20", "p": "MOCA", "u": "6H", "v": 64000, "vu": 64000, "vc": 0, "vd": "Patricia Fussi Kw", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2362}, {"f": "2024-12-19", "p": "MOCA", "u": "3K", "v": 152000, "vu": 152000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "3 AMB", "m2pond": 68.15, "coch": false, "multi": false, "usd_m2": 2230}, {"f": "2024-12-19", "p": "MOCA", "u": "9V", "v": 87000, "vu": 87000, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 12, "blanq": false, "tip": "2 AMB", "m2pond": 40.62, "coch": false, "multi": false, "usd_m2": 2142}, {"f": "2024-12-18", "p": "MEDRANO", "u": "2J", "v": 140000, "vu": 140000, "vc": 0, "vd": "Nira Brokers", "y": 2024, "m": 12, "blanq": false, "tip": "2 AMB", "m2pond": 45.5, "coch": false, "multi": false, "usd_m2": 3077}, {"f": "2024-12-17", "p": "MOLDES", "u": "S710", "v": 103700, "vu": 103700, "vc": 0, "vd": "Castex", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 29.45, "coch": false, "multi": false, "usd_m2": 3521}, {"f": "2024-12-16", "p": "MEDRANO", "u": "1O", "v": 90000, "vu": 90000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 28.12, "coch": false, "multi": false, "usd_m2": 3201}, {"f": "2024-12-16", "p": "SANTA FE", "u": "1301 + C5", "v": 291700, "vu": 291700, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "3 AMB", "m2pond": 98.95, "coch": true, "multi": false, "usd_m2": 2645}, {"f": "2024-12-16", "p": "SANTA FE", "u": "704", "v": 82200, "vu": 82200, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 2816}, {"f": "2024-12-16", "p": "AGUILAR", "u": "702", "v": 112600, "vu": 112600, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "2 AMB", "m2pond": 44.79, "coch": false, "multi": false, "usd_m2": 2514}, {"f": "2024-12-11", "p": "MOLDES", "u": "N104", "v": 150000, "vu": 150000, "vc": 0, "vd": "Mel Propiedades", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 51.8, "coch": false, "multi": false, "usd_m2": 2896}, {"f": "2024-12-04", "p": "SANTA FE", "u": "604", "v": 89300, "vu": 89300, "vc": 0, "vd": "Real Capital", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 3059}, {"f": "2025-12-09", "p": "MOCA", "u": "4Q, 6C, 12M", "v": 220000, "vu": 220000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-11-22", "p": "MOCA", "u": "13H", "v": 115000, "vu": 115000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 11, "blanq": false, "tip": "2 AMB", "m2pond": 45.1, "coch": false, "multi": false, "usd_m2": 2550}, {"f": "2024-11-21", "p": "SANTA FE", "u": "1302", "v": 177900, "vu": 177900, "vc": 0, "vd": "Michael Koh", "y": 2024, "m": 11, "blanq": false, "tip": "3 AMB", "m2pond": 62.36, "coch": false, "multi": false, "usd_m2": 2853}, {"f": "2024-11-21", "p": "SANTA FE", "u": "1101-1102", "v": 365200, "vu": 365200, "vc": 0, "vd": "Michael Koh", "y": 2024, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-11-21", "p": "MOCA", "u": "2A", "v": 136700, "vu": 136700, "vc": 0, "vd": "Renki Propiedades", "y": 2024, "m": 11, "blanq": false, "tip": "3 AMB", "m2pond": 70.67, "coch": false, "multi": false, "usd_m2": 1934}, {"f": "2024-11-19", "p": "AGUILAR", "u": "703", "v": 94900, "vu": 94900, "vc": 0, "vd": "Real Capital", "y": 2024, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 34.25, "coch": false, "multi": false, "usd_m2": 2771}, {"f": "2024-11-13", "p": "MOLDES", "u": "S906", "v": 113000, "vu": 113000, "vc": 0, "vd": "Girgola Propiedades", "y": 2024, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 33.38, "coch": false, "multi": false, "usd_m2": 3385}, {"f": "2024-11-12", "p": "MOCA", "u": "15K + C51", "v": 149300, "vu": 149300, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 11, "blanq": false, "tip": "2 AMB", "m2pond": 51.11, "coch": true, "multi": false, "usd_m2": 2334}, {"f": "2024-11-12", "p": "MOCA", "u": "15F + C50", "v": 201400, "vu": 201400, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 11, "blanq": false, "tip": "3 AMB", "m2pond": 72.46, "coch": true, "multi": false, "usd_m2": 2365}, {"f": "2024-11-12", "p": "MOCA", "u": "15E + C48", "v": 130200, "vu": 130200, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 11, "blanq": false, "tip": "2 AMB", "m2pond": 43.29, "coch": true, "multi": false, "usd_m2": 2315}, {"f": "2024-11-07", "p": "LMC", "u": "102", "v": 97000, "vu": 97000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 30.5, "coch": false, "multi": false, "usd_m2": 3180}, {"f": "2024-11-07", "p": "MOCA", "u": "11J", "v": 48403, "vu": 48403, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 11, "blanq": false, "tip": "2 AMB", "m2pond": 45.1, "coch": false, "multi": false, "usd_m2": 1073}, {"f": "2024-11-05", "p": "MEDRANO", "u": "40", "v": 15000, "vu": 15000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-11-28", "p": "SANTA FE", "u": "901", "v": 275000, "vu": 275000, "vc": 0, "vd": "Michael Koh", "y": 2024, "m": 11, "blanq": false, "tip": "3 AMB", "m2pond": 79.23, "coch": false, "multi": false, "usd_m2": 3471}, {"f": "2025-12-23", "p": "AGUILAR", "u": "201", "v": 132000, "vu": 132000, "vc": 0, "vd": "Martu Oriozabala", "y": 2025, "m": 12, "blanq": false, "tip": "2 AMB", "m2pond": 45.77, "coch": false, "multi": false, "usd_m2": 2884}, {"f": "2025-03-05", "p": "AGUILAR", "u": "602", "v": 132000, "vu": 132000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 3, "blanq": false, "tip": "2 AMB", "m2pond": 44.79, "coch": false, "multi": false, "usd_m2": 2947}, {"f": "2024-05-03", "p": "MOLDES", "u": "S803", "v": 95500, "vu": 95500, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 28.2, "coch": false, "multi": false, "usd_m2": 3387}, {"f": "2024-12-20", "p": "MOCA", "u": "8K", "v": 20000, "vu": 20000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "3 AMB", "m2pond": 68.15, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-02-21", "p": "IRIGOYEN 1428", "u": "3B", "v": 69500, "vu": 69500, "vc": 0, "vd": "Ginevra Prop", "y": 2025, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-02-21", "p": "MOCA", "u": "4I", "v": 60000, "vu": 60000, "vc": 0, "vd": "Ginevra Prop", "y": 2025, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2214}, {"f": "2025-02-21", "p": "MOCA", "u": "6F", "v": 64000, "vu": 64000, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2362}, {"f": "2025-02-11", "p": "DEFENSA", "u": "1A", "v": 107500, "vu": 107500, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-02-14", "p": "MOCA", "u": "4A", "v": 145300, "vu": 145300, "vc": 0, "vd": "G&D Developers", "y": 2025, "m": 2, "blanq": false, "tip": "3 AMB", "m2pond": 65.9, "coch": false, "multi": false, "usd_m2": 2205}, {"f": "2025-02-20", "p": "MEDRANO", "u": "1K", "v": 159000, "vu": 159000, "vc": 0, "vd": "Girgola Prop", "y": 2025, "m": 2, "blanq": false, "tip": "2 AMB", "m2pond": 51.62, "coch": false, "multi": false, "usd_m2": 3080}, {"f": "2025-01-15", "p": "MEDRANO", "u": "4Q", "v": 83000, "vu": 83000, "vc": 0, "vd": "Irene Vitaloni", "y": 2025, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 24.0, "coch": false, "multi": false, "usd_m2": 3458}, {"f": "2025-01-09", "p": "MOLDES", "u": "N214", "v": 106000, "vu": 106000, "vc": 0, "vd": "Vero Ferdman", "y": 2025, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 32.15, "coch": false, "multi": false, "usd_m2": 3297}, {"f": "2025-01-08", "p": "IRIGOYEN 1428", "u": "14C", "v": 64885, "vu": 64885, "vc": 0, "vd": "Intermedia", "y": 2025, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-01-08", "p": "IRIGOYEN 1428", "u": "13C", "v": 64030, "vu": 64030, "vc": 0, "vd": "Intermedia", "y": 2025, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-01-08", "p": "MOLDES", "u": "S413", "v": 110000, "vu": 110000, "vc": 0, "vd": "Iansavra", "y": 2025, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 33.85, "coch": false, "multi": false, "usd_m2": 3250}, {"f": "2024-12-26", "p": "MOCA", "u": "6I", "v": 63000, "vu": 63000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2325}, {"f": "2025-02-27", "p": "SANTA FE", "u": "701", "v": 301800, "vu": 301800, "vc": 0, "vd": "Michael Koh", "y": 2025, "m": 2, "blanq": false, "tip": "3 AMB", "m2pond": 79.23, "coch": false, "multi": false, "usd_m2": 3809}, {"f": "2023-02-16", "p": "DEFENSA", "u": "10B", "v": 136000, "vu": 136000, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-02-01", "p": "PIEDRAS", "u": "3G", "v": 62500, "vu": 62500, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-01-28", "p": "MOLDES", "u": "S802", "v": 86000, "vu": 86000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 28.05, "coch": false, "multi": false, "usd_m2": 3066}, {"f": "2023-01-13", "p": "MOCA", "u": "2D", "v": 47400, "vu": 47400, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 1799}, {"f": "2023-01-13", "p": "MOCA", "u": "2C", "v": 47400, "vu": 47400, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 1799}, {"f": "2023-01-05", "p": "CHARCAS", "u": "3E", "v": 82000, "vu": 82000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-12-28", "p": "IRIGOYEN 1428", "u": "12A", "v": 70000, "vu": 70000, "vc": 0, "vd": "Real Capital", "y": 2022, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-12-28", "p": "MEDRANO", "u": "4D", "v": 64500, "vu": 64500, "vc": 0, "vd": "Remax", "y": 2022, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 24.0, "coch": false, "multi": false, "usd_m2": 2688}, {"f": "2022-11-25", "p": "MOLDES", "u": "S102", "v": 66600, "vu": 66600, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 26.7, "coch": false, "multi": false, "usd_m2": 2494}, {"f": "2022-11-15", "p": "MOLDES", "u": "S704", "v": 156500, "vu": 156500, "vc": 0, "vd": "Leo Colusso", "y": 2022, "m": 11, "blanq": false, "tip": "2 AMB", "m2pond": 53.5, "coch": false, "multi": false, "usd_m2": 2925}, {"f": "2022-09-16", "p": "AREVALO", "u": "205", "v": 95000, "vu": 95000, "vc": 0, "vd": "Vivono Prop", "y": 2022, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-09-14", "p": "IRIGOYEN 1428", "u": "7A+C24", "v": 85000, "vu": 85000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2022-09-06", "p": "MEDRANO", "u": "4A", "v": 185000, "vu": 185000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 9, "blanq": false, "tip": "3 AMB", "m2pond": 76.62, "coch": false, "multi": false, "usd_m2": 2415}, {"f": "2022-06-21", "p": "PIEDRAS", "u": "2A", "v": 118000, "vu": 118000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-06-10", "p": "IRIGOYEN 1428", "u": "12H", "v": 55000, "vu": 55000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-06-09", "p": "IRIGOYEN 1428", "u": "9A", "v": 80000, "vu": 80000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-06-09", "p": "IRIGOYEN 1428", "u": "10D", "v": 59000, "vu": 59000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-06-08", "p": "THAMES", "u": "LOFT", "v": 275000, "vu": 275000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-11-25", "p": "AREVALO", "u": "906", "v": 124000, "vu": 124000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-07-03", "p": "MOCA", "u": "2G", "v": 40000, "vu": 40000, "vc": 0, "vd": "Patricia Fussi", "y": 2023, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 1518}, {"f": "2023-05-28", "p": "MOCA", "u": "5K", "v": 127000, "vu": 127000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 5, "blanq": false, "tip": "3 AMB", "m2pond": 68.15, "coch": false, "multi": false, "usd_m2": 1864}, {"f": "2023-04-27", "p": "MOLDES", "u": "N401", "v": 210000, "vu": 210000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 4, "blanq": false, "tip": "3 AMB", "m2pond": 75.55, "coch": false, "multi": false, "usd_m2": 2780}, {"f": "2023-04-25", "p": "MOCA", "u": "16D+C42", "v": 191400, "vu": 191400, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 4, "blanq": false, "tip": "3 AMB", "m2pond": 76.67, "coch": true, "multi": false, "usd_m2": 2105}, {"f": "2023-04-24", "p": "MOLDES", "u": "C47 y C65", "v": 50000, "vu": 50000, "vc": 0, "vd": "Castex", "y": 2023, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-03-02", "p": "MOCA", "u": "4U", "v": 73400, "vu": 73400, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 3, "blanq": false, "tip": "2 AMB", "m2pond": 39.65, "coch": false, "multi": false, "usd_m2": 1851}, {"f": "2023-04-18", "p": "MOCA", "u": "6N", "v": 54000, "vu": 54000, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1993}, {"f": "2023-04-14", "p": "MEDRANO", "u": "2A + C1", "v": 223900, "vu": 223900, "vc": 0, "vd": "Jerónimo Bidegain", "y": 2023, "m": 4, "blanq": false, "tip": "3 AMB", "m2pond": 78.5, "coch": true, "multi": false, "usd_m2": 2470}, {"f": "2023-04-14", "p": "MEDRANO", "u": "1J", "v": 127000, "vu": 127000, "vc": 0, "vd": "Jerónimo Bidegain", "y": 2023, "m": 4, "blanq": false, "tip": "2 AMB", "m2pond": 48.12, "coch": false, "multi": false, "usd_m2": 2639}, {"f": "2023-04-11", "p": "MOCA", "u": "7U", "v": 76700, "vu": 76700, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 4, "blanq": false, "tip": "2 AMB", "m2pond": 39.65, "coch": false, "multi": false, "usd_m2": 1934}, {"f": "2023-03-22", "p": "MOLDES", "u": "N706", "v": 80000, "vu": 80000, "vc": 0, "vd": "Castex", "y": 2023, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.7, "coch": false, "multi": false, "usd_m2": 2787}, {"f": "2023-03-23", "p": "AREVALO", "u": "909", "v": 195000, "vu": 195000, "vc": 0, "vd": "Remax", "y": 2023, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-03-16", "p": "MOCA", "u": "6S", "v": 58400, "vu": 58400, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2163}, {"f": "2023-03-16", "p": "MOCA", "u": "4N", "v": 55800, "vu": 55800, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2059}, {"f": "2023-03-13", "p": "MOCA", "u": "2E", "v": 44000, "vu": 44000, "vc": 0, "vd": "Vela Prop", "y": 2023, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 1670}, {"f": "2023-03-06", "p": "LMC", "u": "902", "v": 74600, "vu": 74600, "vc": 0, "vd": "Real Capital", "y": 2023, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 30.7, "coch": false, "multi": false, "usd_m2": 2430}, {"f": "2023-03-06", "p": "LMC", "u": "602", "v": 87260, "vu": 87260, "vc": 0, "vd": "Real Capital", "y": 2023, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 30.7, "coch": false, "multi": false, "usd_m2": 2842}, {"f": "2023-04-20", "p": "AREVALO", "u": "509", "v": 95000, "vu": 95000, "vc": 0, "vd": "Rt Brokers", "y": 2023, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-10-07", "p": "MOCA", "u": "4H", "v": 46872, "vu": 46872, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1730}, {"f": "2021-09-27", "p": "AREVALO", "u": "608", "v": 70000, "vu": 70000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-09-27", "p": "MOLDES", "u": "S206", "v": 67760, "vu": 67760, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 28.45, "coch": false, "multi": false, "usd_m2": 2382}, {"f": "2021-09-09", "p": "MOCA", "u": "3A", "v": 114450, "vu": 114450, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 9, "blanq": false, "tip": "3 AMB", "m2pond": 65.9, "coch": false, "multi": false, "usd_m2": 1737}, {"f": "2021-08-09", "p": "MOCA", "u": "9R", "v": 46288, "vu": 46288, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 26.05, "coch": false, "multi": false, "usd_m2": 1777}, {"f": "2021-08-04", "p": "THAMES", "u": "3A", "v": 198000, "vu": 198000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-07-28", "p": "THAMES", "u": "3D", "v": 180000, "vu": 180000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-07-07", "p": "IRIGOYEN 1428", "u": "14G", "v": 59800, "vu": 59800, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-06-08", "p": "IRIGOYEN 1428", "u": "6D + C25", "v": 62500, "vu": 62500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2021-05-21", "p": "MOLDES", "u": "S205", "v": 69260, "vu": 69260, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 28.35, "coch": false, "multi": false, "usd_m2": 2443}, {"f": "2021-02-24", "p": "THAMES", "u": "7B", "v": 143000, "vu": 143000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-01-27", "p": "IRIGOYEN 1428", "u": "10B", "v": 60000, "vu": 60000, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2025-04-25", "p": "MOCA", "u": "7L", "v": 74300, "vu": 74300, "vc": 0, "vd": "Remax", "y": 2025, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2742}, {"f": "2021-03-19", "p": "IRIGOYEN 1428", "u": "14H", "v": 63450, "vu": 63450, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-03-03", "p": "MOLDES", "u": "S701 + C6", "v": 227544, "vu": 227544, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 3, "blanq": false, "tip": "3 AMB", "m2pond": 72.5, "coch": true, "multi": false, "usd_m2": 2725}, {"f": "2022-06-03", "p": "CHARCAS", "u": "4A", "v": 140000, "vu": 140000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 6, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-05-27", "p": "PARAGUAY", "u": "804", "v": 159000, "vu": 159000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-05-24", "p": "THAMES", "u": "1B", "v": 275000, "vu": 275000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-05-20", "p": "IRIGOYEN 1428", "u": "13B", "v": 53500, "vu": 53500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 5, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-05-16", "p": "MOCA", "u": "3O", "v": 48300, "vu": 48300, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1782}, {"f": "2022-05-11", "p": "MOCA", "u": "4M", "v": 49200, "vu": 49200, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 5, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1815}, {"f": "2022-04-18", "p": "PARAGUAY", "u": "104+404", "v": 305000, "vu": 305000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": true, "usd_m2": null}, {"f": "2022-04-18", "p": "THAMES", "u": "2D", "v": 280000, "vu": 280000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-04-11", "p": "MOLDES", "u": "Cochera 72 y 73", "v": 42000, "vu": 42000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2022-03-28", "p": "AREVALO", "u": "903", "v": 83000, "vu": 83000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2021-10-20", "p": "MOCA", "u": "4V", "v": 66500, "vu": 66500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 40.48, "coch": false, "multi": false, "usd_m2": 1643}, {"f": "2022-03-28", "p": "MOLDES", "u": "S801 + C4", "v": 84340, "vu": 84340, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 3, "blanq": false, "tip": "3 AMB", "m2pond": 71.88, "coch": true, "multi": false, "usd_m2": 756}, {"f": "2022-03-25", "p": "MOLDES", "u": "S705", "v": 74500, "vu": 74500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.35, "coch": false, "multi": false, "usd_m2": 2628}, {"f": "2022-03-22", "p": "PIEDRAS", "u": "3F", "v": 45000, "vu": 45000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2022-03-02", "p": "MOLDES", "u": "ST91213", "v": 296000, "vu": 296000, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 3, "blanq": false, "tip": "3 AMB", "m2pond": 102.62, "coch": false, "multi": false, "usd_m2": 2884}, {"f": "2022-02-25", "p": "MOLDES", "u": "N504 + C27", "v": 164500, "vu": 164500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 2, "blanq": false, "tip": "2 AMB", "m2pond": 51.55, "coch": true, "multi": false, "usd_m2": 2609}, {"f": "2022-02-17", "p": "MOLDES", "u": "S402", "v": 76500, "vu": 76500, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 29.05, "coch": false, "multi": false, "usd_m2": 2633}, {"f": "2022-02-17", "p": "MOCA", "u": "4B", "v": 47250, "vu": 47250, "vc": 0, "vd": "G&D Developers", "y": 2022, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 1750}, {"f": "2021-10-20", "p": "MOCA", "u": "5V", "v": 66500, "vu": 66500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 40.48, "coch": false, "multi": false, "usd_m2": 1643}, {"f": "2021-10-20", "p": "MOCA", "u": "5U", "v": 66500, "vu": 66500, "vc": 0, "vd": "G&D Developers", "y": 2021, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 39.65, "coch": false, "multi": false, "usd_m2": 1677}, {"f": "2024-03-11", "p": "MOCA", "u": "2F", "v": 45000, "vu": 45000, "vc": 0, "vd": "Rosana Asanelli", "y": 2024, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 26.35, "coch": false, "multi": false, "usd_m2": 1708}, {"f": "2024-03-08", "p": "MOLDES", "u": "N808", "v": 82400, "vu": 82400, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.3, "coch": false, "multi": false, "usd_m2": 2912}, {"f": "2024-02-09", "p": "PARAGUAY", "u": "101", "v": 85000, "vu": 85000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 2, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-02-09", "p": "MOLDES", "u": "S504", "v": 178500, "vu": 178500, "vc": 0, "vd": "Tovado Prop", "y": 2024, "m": 2, "blanq": false, "tip": "2 AMB", "m2pond": 53.5, "coch": false, "multi": false, "usd_m2": 3336}, {"f": "2024-02-08", "p": "MOCA", "u": "3C", "v": 49000, "vu": 49000, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1808}, {"f": "2024-02-08", "p": "MOCA", "u": "3B", "v": 49600, "vu": 49600, "vc": 0, "vd": "Situar Prop", "y": 2024, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 1837}, {"f": "2024-01-28", "p": "MOLDES", "u": "N51011 + C50", "v": 199975, "vu": 199975, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 1, "blanq": false, "tip": "2 AMB", "m2pond": 63.45, "coch": true, "multi": false, "usd_m2": 2679}, {"f": "2023-07-03", "p": "MOCA", "u": "3G", "v": 47400, "vu": 47400, "vc": 0, "vd": "Vanina Nacaratti", "y": 2023, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1749}, {"f": "2024-01-24", "p": "MOLDES", "u": "N402", "v": 85500, "vu": 85500, "vc": 0, "vd": "Vero Ferdman", "y": 2024, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 30.6, "coch": false, "multi": false, "usd_m2": 2794}, {"f": "2024-01-23", "p": "PIEDRAS", "u": "1H", "v": 100000, "vu": 100000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-01-18", "p": "MOLDES", "u": "S702", "v": 85845, "vu": 85845, "vc": 0, "vd": "Castex", "y": 2024, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 29.05, "coch": false, "multi": false, "usd_m2": 2955}, {"f": "2024-01-18", "p": "PARAGUAY", "u": "504", "v": 202000, "vu": 202000, "vc": 0, "vd": "Delfina Castresana", "y": 2024, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-01-17", "p": "PARAGUAY", "u": "604", "v": 213984, "vu": 213984, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 1, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-01-12", "p": "MOCA", "u": "9O", "v": 54300, "vu": 54300, "vc": 0, "vd": "Yasmin Hipólito", "y": 2024, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 26.05, "coch": false, "multi": false, "usd_m2": 2084}, {"f": "2024-01-04", "p": "MOLDES", "u": "S202", "v": 78000, "vu": 78000, "vc": 0, "vd": "Giselle Pérez Bas", "y": 2024, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 29.05, "coch": false, "multi": false, "usd_m2": 2685}, {"f": "2023-12-22", "p": "MOCA", "u": "5P", "v": 50200, "vu": 50200, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1852}, {"f": "2023-12-22", "p": "MOCA", "u": "3E", "v": 43600, "vu": 43600, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1609}, {"f": "2023-12-21", "p": "MOLDES", "u": "N209", "v": 144600, "vu": 144600, "vc": 0, "vd": "Castex", "y": 2023, "m": 12, "blanq": false, "tip": "2 AMB", "m2pond": 54.25, "coch": false, "multi": false, "usd_m2": 2665}, {"f": "2024-01-26", "p": "MOLDES", "u": "N212 + C17", "v": 226800, "vu": 226800, "vc": 0, "vd": "Castex", "y": 2024, "m": 1, "blanq": false, "tip": "3 AMB", "m2pond": 73.8, "coch": true, "multi": false, "usd_m2": 2667}, {"f": "2024-04-18", "p": "MOLDES", "u": "S805", "v": 89920, "vu": 89920, "vc": 0, "vd": "Vero Ferdman", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 28.35, "coch": false, "multi": false, "usd_m2": 3172}, {"f": "2024-04-22", "p": "PIEDRAS", "u": "PB C", "v": 108000, "vu": 108000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-04-22", "p": "PIEDRAS", "u": "5A", "v": 106000, "vu": 106000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-04-09", "p": "MOCA", "u": "16E, C99", "v": 191746, "vu": 191746, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 4, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-04-09", "p": "MOCA", "u": "6Q", "v": 53900, "vu": 53900, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1989}, {"f": "2024-04-09", "p": "MEDRANO", "u": "4i", "v": 71440, "vu": 71440, "vc": 0, "vd": "Javier Peñalver", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 24.0, "coch": false, "multi": false, "usd_m2": 2977}, {"f": "2024-04-09", "p": "MEDRANO", "u": "2D", "v": 74000, "vu": 74000, "vc": 0, "vd": "Javier Peñalver", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 26.0, "coch": false, "multi": false, "usd_m2": 2846}, {"f": "2024-04-09", "p": "MOCA", "u": "17E", "v": 174900, "vu": 174900, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 4, "blanq": false, "tip": "3 AMB", "m2pond": 71.92, "coch": false, "multi": false, "usd_m2": 2432}, {"f": "2024-04-08", "p": "MEDRANO", "u": "4L", "v": 74300, "vu": 74300, "vc": 0, "vd": "Ianven", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 24.0, "coch": false, "multi": false, "usd_m2": 3096}, {"f": "2024-04-08", "p": "LMC", "u": "1101", "v": 170000, "vu": 170000, "vc": 0, "vd": "Josefina Llanos (Aranalfe)", "y": 2024, "m": 4, "blanq": false, "tip": "2 AMB", "m2pond": 52.38, "coch": false, "multi": false, "usd_m2": 3246}, {"f": "2024-04-06", "p": "LMC", "u": "803", "v": 150000, "vu": 150000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 4, "blanq": false, "tip": "2 AMB", "m2pond": 51.4, "coch": false, "multi": false, "usd_m2": 2918}, {"f": "2024-03-12", "p": "MOLDES", "u": "N708", "v": 82000, "vu": 82000, "vc": 0, "vd": "Silvia Embon", "y": 2024, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.3, "coch": false, "multi": false, "usd_m2": 2898}, {"f": "2024-04-05", "p": "SANTA FE", "u": "504", "v": 70000, "vu": 70000, "vc": 0, "vd": "Rodrigo Costa", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 2398}, {"f": "2024-03-27", "p": "PARAGUAY", "u": "402", "v": 135850, "vu": 135850, "vc": 0, "vd": "Guillermo Coldwell", "y": 2024, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-03-27", "p": "PARAGUAY", "u": "302", "v": 133000, "vu": 133000, "vc": 0, "vd": "Guillermo Coldwell", "y": 2024, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-03-25", "p": "MOLDES", "u": "N509", "v": 171500, "vu": 171500, "vc": 0, "vd": "Matias Arditi", "y": 2024, "m": 3, "blanq": false, "tip": "2 AMB", "m2pond": 54.25, "coch": false, "multi": false, "usd_m2": 3161}, {"f": "2024-03-22", "p": "MOLDES", "u": "N704 Y N705 + C15", "v": 259175, "vu": 259175, "vc": 0, "vd": "Intelligent", "y": 2024, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2024-03-22", "p": "SANTA FE", "u": "204", "v": 66722, "vu": 66722, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 2286}, {"f": "2024-03-22", "p": "SANTA FE", "u": "104", "v": 65586, "vu": 65586, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 29.42, "coch": false, "multi": false, "usd_m2": 2229}, {"f": "2024-03-21", "p": "MOCA", "u": "15i", "v": 104200, "vu": 104200, "vc": 0, "vd": "Leo Colusso", "y": 2024, "m": 3, "blanq": false, "tip": "2 AMB", "m2pond": 43.77, "coch": false, "multi": false, "usd_m2": 2381}, {"f": "2024-03-19", "p": "MOLDES", "u": "N805", "v": 83000, "vu": 83000, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 3, "blanq": false, "tip": "MONO", "m2pond": 28.3, "coch": false, "multi": false, "usd_m2": 2933}, {"f": "2024-03-14", "p": "MOCA", "u": "4T, C27", "v": 142222, "vu": 142222, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 3, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2024-03-14", "p": "LMC", "u": "703", "v": 137085, "vu": 137085, "vc": 0, "vd": "G&D Developers", "y": 2024, "m": 3, "blanq": false, "tip": "2 AMB", "m2pond": 51.4, "coch": false, "multi": false, "usd_m2": 2667}, {"f": "2024-03-13", "p": "MOLDES", "u": "S701", "v": 260000, "vu": 260000, "vc": 0, "vd": "Intelligent", "y": 2024, "m": 3, "blanq": false, "tip": "3 AMB", "m2pond": 72.5, "coch": false, "multi": false, "usd_m2": 3586}, {"f": "2024-04-05", "p": "SANTA FE", "u": "404", "v": 69000, "vu": 69000, "vc": 0, "vd": "Rodrigo Costa", "y": 2024, "m": 4, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 2364}, {"f": "2023-09-28", "p": "PARAGUAY", "u": "201", "v": 84500, "vu": 84500, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-09-28", "p": "MOLDES", "u": "N202", "v": 79000, "vu": 79000, "vc": 0, "vd": "Remax Data Gold", "y": 2023, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 30.6, "coch": false, "multi": false, "usd_m2": 2582}, {"f": "2023-09-27", "p": "MOCA", "u": "4O", "v": 51500, "vu": 51500, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 9, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1900}, {"f": "2023-09-20", "p": "MOLDES", "u": "S21011", "v": 156000, "vu": 156000, "vc": 0, "vd": "Tovado Prop", "y": 2023, "m": 9, "blanq": false, "tip": "2 AMB", "m2pond": 60.3, "coch": false, "multi": false, "usd_m2": 2587}, {"f": "2023-09-14", "p": "PIEDRAS", "u": "4D", "v": 61000, "vu": 61000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-09-08", "p": "PARAGUAY", "u": "602", "v": 138000, "vu": 138000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 9, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-08-15", "p": "DEFENSA", "u": "2B", "v": 97500, "vu": 97500, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-08-18", "p": "MOCA", "u": "6L", "v": 51300, "vu": 51300, "vc": 0, "vd": "Nino Pecora", "y": 2023, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1893}, {"f": "2023-08-28", "p": "IRIGOYEN 1428", "u": "7H", "v": 55000, "vu": 55000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 8, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-12-19", "p": "MOLDES", "u": "Cocheras 52, 53 y 67", "v": 72750, "vu": 72750, "vc": 0, "vd": "Castex", "y": 2023, "m": 12, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2023-08-18", "p": "MOLDES", "u": "N312", "v": 208100, "vu": 208100, "vc": 0, "vd": "Veronica Ferdman", "y": 2023, "m": 8, "blanq": false, "tip": "3 AMB", "m2pond": 73.8, "coch": false, "multi": false, "usd_m2": 2820}, {"f": "2023-08-11", "p": "MOLDES", "u": "ST90114 + cochera 49", "v": 306910, "vu": 306910, "vc": 0, "vd": "Intelligent", "y": 2023, "m": 8, "blanq": false, "tip": "3 AMB", "m2pond": 95.12, "coch": true, "multi": false, "usd_m2": 2911}, {"f": "2023-08-11", "p": "MOLDES", "u": "S502", "v": 80840, "vu": 80840, "vc": 0, "vd": "Intelligent", "y": 2023, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 29.05, "coch": false, "multi": false, "usd_m2": 2783}, {"f": "2023-08-11", "p": "MOLDES", "u": "S503", "v": 81310, "vu": 81310, "vc": 0, "vd": "Intelligent", "y": 2023, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 29.25, "coch": false, "multi": false, "usd_m2": 2780}, {"f": "2023-07-20", "p": "IRIGOYEN 1428", "u": "6A", "v": 85000, "vu": 85000, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-07-18", "p": "MOLDES", "u": "S81011", "v": 162000, "vu": 162000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 7, "blanq": false, "tip": "2 AMB", "m2pond": 58.48, "coch": false, "multi": false, "usd_m2": 2770}, {"f": "2023-07-07", "p": "PARAGUAY", "u": "705", "v": 82000, "vu": 82000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-07-19", "p": "PIEDRAS", "u": "4G", "v": 62000, "vu": 62000, "vc": 0, "vd": "Ana Cardales", "y": 2023, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-07-07", "p": "VIAMONTE", "u": "8A", "v": 82000, "vu": 82000, "vc": 0, "vd": "Tomasco Prop", "y": 2023, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-07-11", "p": "MOCA", "u": "4S", "v": 52450, "vu": 52450, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 7, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-07-07", "p": "MOCA", "u": "4P", "v": 51480, "vu": 51480, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 7, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1900}, {"f": "2023-08-15", "p": "MOLDES", "u": "N308", "v": 73331, "vu": 73331, "vc": 0, "vd": "Castex", "y": 2023, "m": 8, "blanq": false, "tip": "MONO", "m2pond": 28.3, "coch": false, "multi": false, "usd_m2": 2591}, {"f": "2023-12-12", "p": "MOLDES", "u": "S203", "v": 78300, "vu": 78300, "vc": 0, "vd": "Castex", "y": 2023, "m": 12, "blanq": false, "tip": "MONO", "m2pond": 29.25, "coch": false, "multi": false, "usd_m2": 2677}, {"f": "2023-11-22", "p": "MOLDES", "u": "N403", "v": 84000, "vu": 84000, "vc": 0, "vd": "Castex", "y": 2023, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 30.8, "coch": false, "multi": false, "usd_m2": 2727}, {"f": "2023-11-28", "p": "IRIGOYEN 1428", "u": "5B", "v": 58000, "vu": 58000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-11-28", "p": "MOLDES", "u": "N201", "v": 192000, "vu": 192000, "vc": 0, "vd": "Ideacinco", "y": 2023, "m": 11, "blanq": false, "tip": "3 AMB", "m2pond": 75.55, "coch": false, "multi": false, "usd_m2": 2541}, {"f": "2023-11-28", "p": "MOLDES", "u": "S206", "v": 72750, "vu": 72750, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 28.45, "coch": false, "multi": false, "usd_m2": 2557}, {"f": "2023-11-17", "p": "MOLDES", "u": "S212", "v": 205700, "vu": 205700, "vc": 0, "vd": "Ib Realty", "y": 2023, "m": 11, "blanq": false, "tip": "3 AMB", "m2pond": 75.2, "coch": false, "multi": false, "usd_m2": 2735}, {"f": "2023-11-16", "p": "IRIGOYEN 1428", "u": "10C", "v": 50540, "vu": 50540, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-11-13", "p": "PARAGUAY", "u": "704", "v": 198250, "vu": 198250, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-11-13", "p": "PARAGUAY", "u": "703", "v": 134890, "vu": 134890, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-11-06", "p": "MOCA", "u": "7N", "v": 48600, "vu": 48600, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 11, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1793}, {"f": "2023-10-24", "p": "MOCA", "u": "4H", "v": 48000, "vu": 48000, "vc": 0, "vd": "Ana Cardales", "y": 2023, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 1771}, {"f": "2023-10-19", "p": "PARAGUAY", "u": "901", "v": 151640, "vu": 151640, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-10-18", "p": "PIEDRAS", "u": "2B", "v": 61000, "vu": 61000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-10-11", "p": "LMC", "u": "202", "v": 77520, "vu": 77520, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 30.5, "coch": false, "multi": false, "usd_m2": 2542}, {"f": "2023-10-10", "p": "MOLDES", "u": "N204", "v": 158565, "vu": 158565, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 51.55, "coch": false, "multi": false, "usd_m2": 3076}, {"f": "2023-10-10", "p": "AREVALO", "u": "907+C16", "v": 138000, "vu": 138000, "vc": 0, "vd": "Real Capital", "y": 2023, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": true, "multi": false, "usd_m2": null}, {"f": "2023-10-10", "p": "DEFENSA", "u": "9A", "v": 144000, "vu": 144000, "vc": 0, "vd": "Leo Colusso", "y": 2023, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-10-09", "p": "MOLDES", "u": "N21011", "v": 160000, "vu": 160000, "vc": 0, "vd": "Tovado Propiedades", "y": 2023, "m": 10, "blanq": false, "tip": "2 AMB", "m2pond": 63.45, "coch": false, "multi": false, "usd_m2": 2522}, {"f": "2023-10-05", "p": "PIEDRAS", "u": "PB H", "v": 125000, "vu": 125000, "vc": 0, "vd": "Daniela Chiappe", "y": 2023, "m": 10, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2023-10-04", "p": "MOCA", "u": "5Q", "v": 55000, "vu": 55000, "vc": 0, "vd": "G&D Developers", "y": 2023, "m": 10, "blanq": false, "tip": "MONO", "m2pond": 27.1, "coch": false, "multi": false, "usd_m2": 2030}, {"f": "2023-11-15", "p": "PARAGUAY", "u": "803", "v": 123840, "vu": 123840, "vc": 0, "vd": "Buysellba", "y": 2023, "m": 11, "blanq": false, "tip": null, "m2pond": null, "coch": false, "multi": false, "usd_m2": null}, {"f": "2026-01-02", "p": "LMC", "u": "101", "v": 125000, "vu": 125000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 37.7, "coch": false, "multi": false, "usd_m2": 3316}, {"f": "2026-01-09", "p": "LMC", "u": "1003", "v": 198500, "vu": 198500, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 1, "blanq": false, "tip": "2 AMB", "m2pond": 51.4, "coch": false, "multi": false, "usd_m2": 3862}, {"f": "2026-01-09", "p": "LMC", "u": "903", "v": 180450, "vu": 180450, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 1, "blanq": false, "tip": "2 AMB", "m2pond": 51.4, "coch": false, "multi": false, "usd_m2": 3511}, {"f": "2026-01-21", "p": "MOCA", "u": "13J", "v": 116500, "vu": 116500, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 1, "blanq": false, "tip": "2 AMB", "m2pond": 45.1, "coch": false, "multi": false, "usd_m2": 2583}, {"f": "2026-01-28", "p": "MOCA", "u": "6B", "v": 66000, "vu": 66000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 1, "blanq": false, "tip": "MONO", "m2pond": 27.0, "coch": false, "multi": false, "usd_m2": 2444}, {"f": "2026-02-03", "p": "SANTA FE", "u": "904", "v": 103000, "vu": 103000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 29.19, "coch": false, "multi": false, "usd_m2": 3529}, {"f": "2026-02-03", "p": "SANTA FE", "u": "1303", "v": 106000, "vu": 106000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 29.14, "coch": false, "multi": false, "usd_m2": 3637}, {"f": "2026-02-04", "p": "MOCA", "u": "13M + C31", "v": 115000, "vu": 115000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 2, "blanq": false, "tip": "2 AMB", "m2pond": 40.68, "coch": true, "multi": false, "usd_m2": 2089}, {"f": "2026-02-19", "p": "LMC", "u": "1102", "v": 198000, "vu": 198000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 2, "blanq": false, "tip": "2 AMB", "m2pond": 48.55, "coch": false, "multi": false, "usd_m2": 4078}, {"f": "2026-02-20", "p": "PUEYRREDON", "u": "503", "v": 103000, "vu": 103000, "vc": 0, "vd": "G&D Developers", "y": 2026, "m": 2, "blanq": false, "tip": "MONO", "m2pond": 30.16, "coch": false, "multi": false, "usd_m2": 3415}];
+const HIST_ABS  = [{"proyecto": "LMC", "total": 34, "vendidas": 30, "libres": 4, "pct": 88.2, "entrega": 5, "tip": {"MONO": 20, "2 AMB": 10}, "tip_total": {"MONO": 22, "2 AMB": 12}}, {"proyecto": "IRIGOYEN 1122", "total": 53, "vendidas": 34, "libres": 19, "pct": 64.2, "entrega": 5, "tip": {"MONO": 22, "2 AMB": 12}, "tip_total": {"MONO": 26, "2 AMB": 27}}, {"proyecto": "SANTA FE", "total": 52, "vendidas": 32, "libres": 20, "pct": 61.5, "entrega": 18, "tip": {"MONO": 19, "3 AMB": 13}, "tip_total": {"MONO": 25, "3 AMB": 27}}, {"proyecto": "AGUILAR", "total": 34, "vendidas": 15, "libres": 19, "pct": 44.1, "entrega": 18, "tip": {"MONO": 7, "2 AMB": 8, "3 AMB": 0}, "tip_total": {"MONO": 11, "2 AMB": 22, "3 AMB": 1}}];
+const HIST_STOCK = [{"proyecto":"MOCA","nombre":"MOCA — Barracas","entrega":12,"total":273,"vendidas":230,"libres":43,"pct_vendido":84.2,"valor_remanente":6161700,"by_tip":{"3 AMB":{"libres":8,"valor":1479400},"2 AMB":{"libres":29,"valor":3581600},"MONO":{"libres":3,"valor":337400},"4 AMB":{"libres":3,"valor":763300}}},{"proyecto":"LMC","nombre":"LMC — Belgrano","entrega":5,"total":35,"vendidas":33,"libres":2,"pct_vendido":94.3,"valor_remanente":393100,"by_tip":{"MONO":{"libres":1,"valor":128100},"2 AMB":{"libres":1,"valor":265000}}},{"proyecto":"IRIGOYEN 1122","nombre":"Irigoyen 1122 — San Telmo","entrega":5,"total":53,"vendidas":41,"libres":12,"pct_vendido":77.4,"valor_remanente":1332000,"by_tip":{"2 AMB":{"libres":12,"valor":1332000}}},{"proyecto":"SANTA FE","nombre":"Santa Fe — Palermo","entrega":18,"total":52,"vendidas":33,"libres":19,"pct_vendido":63.5,"valor_remanente":4158500,"by_tip":{"3 AMB":{"libres":13,"valor":3416000},"MONO":{"libres":6,"valor":742500}}},{"proyecto":"AGUILAR","nombre":"Aguilar — Belgrano","entrega":18,"total":34,"vendidas":16,"libres":18,"pct_vendido":47.1,"valor_remanente":2967500,"by_tip":{"2 AMB":{"libres":13,"valor":2196700},"MONO":{"libres":4,"valor":478500},"3 AMB":{"libres":1,"valor":292300}}},{"proyecto":"PUEYRREDON","nombre":"Pueyrredon — Recoleta","entrega":24,"total":54,"vendidas":8,"libres":46,"pct_vendido":14.8,"valor_remanente":8718300,"by_tip":{"?":{"libres":1,"valor":636600},"3 AMB":{"libres":15,"valor":4119700},"MONO":{"libres":21,"valor":2427200},"2 AMB":{"libres":9,"valor":1534800}}},{"proyecto":"FINOCHIETTO 930","nombre":"Finochietto 930","entrega":30,"total":59,"vendidas":1,"libres":58,"pct_vendido":1.7,"valor_remanente":5359000,"by_tip":{"LOCAL":{"libres":1,"valor":250000},"2 AMB":{"libres":36,"valor":3063400},"MONO":{"libres":20,"valor":1884300},"3 AMB":{"libres":1,"valor":161200}},"color":"#E67E22"}];
+const HIST_VEND = [{"vd": "G&D Developers", "ops": 248, "valor": 24947079}, {"vd": "Leo Colusso", "ops": 40, "valor": 3626278}, {"vd": "Castex", "ops": 14, "valor": 1499001}, {"vd": "Real Capital", "ops": 10, "valor": 857360}, {"vd": "Intelligent", "ops": 6, "valor": 1078235}, {"vd": "Ginevra Prop", "ops": 5, "valor": 508500}, {"vd": "Vero Ferdman", "ops": 5, "valor": 542220}, {"vd": "Maxre", "ops": 5, "valor": 288000}, {"vd": "Bellagamba", "ops": 4, "valor": 320000}, {"vd": "Michael Koh", "ops": 4, "valor": 1119900}, {"vd": "Rodrigo Costa", "ops": 4, "valor": 301200}, {"vd": "Ana Cardales", "ops": 4, "valor": 315000}, {"vd": "Irene Vitaloni", "ops": 4, "valor": 283000}, {"vd": "Remax", "ops": 3, "valor": 333800}, {"vd": "Tovado Propiedades", "ops": 3, "valor": 356200}];
+const HIST_MON  = [{"y": 2021, "m": 1, "ops": 3, "v": 173500}, {"y": 2021, "m": 2, "ops": 7, "v": 990967}, {"y": 2021, "m": 3, "ops": 9, "v": 774384}, {"y": 2021, "m": 4, "ops": 2, "v": 152000}, {"y": 2021, "m": 5, "ops": 6, "v": 415733}, {"y": 2021, "m": 6, "ops": 4, "v": 267000}, {"y": 2021, "m": 7, "ops": 7, "v": 582200}, {"y": 2021, "m": 8, "ops": 9, "v": 658563}, {"y": 2021, "m": 9, "ops": 8, "v": 715210}, {"y": 2021, "m": 10, "ops": 6, "v": 384172}, {"y": 2021, "m": 11, "ops": 3, "v": 375000}, {"y": 2021, "m": 12, "ops": 6, "v": 520150}, {"y": 2022, "m": 1, "ops": 4, "v": 610023}, {"y": 2022, "m": 2, "ops": 4, "v": 343250}, {"y": 2022, "m": 3, "ops": 5, "v": 582840}, {"y": 2022, "m": 4, "ops": 5, "v": 734600}, {"y": 2022, "m": 5, "ops": 5, "v": 585000}, {"y": 2022, "m": 6, "ops": 11, "v": 1152535}, {"y": 2022, "m": 7, "ops": 1, "v": 172000}, {"y": 2022, "m": 8, "ops": 10, "v": 829308}, {"y": 2022, "m": 9, "ops": 9, "v": 839080}, {"y": 2022, "m": 10, "ops": 14, "v": 1027059}, {"y": 2022, "m": 11, "ops": 11, "v": 1042445}, {"y": 2022, "m": 12, "ops": 3, "v": 260500}, {"y": 2023, "m": 1, "ops": 4, "v": 262800}, {"y": 2023, "m": 2, "ops": 2, "v": 198500}, {"y": 2023, "m": 3, "ops": 8, "v": 668460}, {"y": 2023, "m": 4, "ops": 8, "v": 1028000}, {"y": 2023, "m": 5, "ops": 1, "v": 127000}, {"y": 2023, "m": 7, "ops": 9, "v": 664330}, {"y": 2023, "m": 8, "ops": 8, "v": 954291}, {"y": 2023, "m": 9, "ops": 6, "v": 570000}, {"y": 2023, "m": 10, "ops": 10, "v": 1118725}, {"y": 2023, "m": 11, "ops": 10, "v": 1168570}, {"y": 2023, "m": 12, "ops": 5, "v": 389450}, {"y": 2024, "m": 1, "ops": 9, "v": 1246404}, {"y": 2024, "m": 2, "ops": 4, "v": 362100}, {"y": 2024, "m": 3, "ops": 14, "v": 1767740}, {"y": 2024, "m": 4, "ops": 13, "v": 1403206}, {"y": 2024, "m": 5, "ops": 16, "v": 1204130}, {"y": 2024, "m": 6, "ops": 16, "v": 1614175}, {"y": 2024, "m": 7, "ops": 11, "v": 841800}, {"y": 2024, "m": 8, "ops": 11, "v": 907800}, {"y": 2024, "m": 9, "ops": 14, "v": 1455400}, {"y": 2024, "m": 10, "ops": 14, "v": 1346100}, {"y": 2024, "m": 11, "ops": 16, "v": 2144803}, {"y": 2024, "m": 12, "ops": 14, "v": 1508500}, {"y": 2025, "m": 1, "ops": 5, "v": 427915}, {"y": 2025, "m": 2, "ops": 8, "v": 1128800}, {"y": 2025, "m": 3, "ops": 4, "v": 511800}, {"y": 2025, "m": 4, "ops": 3, "v": 461300}, {"y": 2025, "m": 5, "ops": 8, "v": 922300}, {"y": 2025, "m": 6, "ops": 4, "v": 451900}, {"y": 2025, "m": 7, "ops": 8, "v": 1056100}, {"y": 2025, "m": 8, "ops": 2, "v": 161900}, {"y": 2025, "m": 9, "ops": 2, "v": 152200}, {"y": 2025, "m": 10, "ops": 4, "v": 458200}, {"y": 2025, "m": 11, "ops": 1, "v": 114200}, {"y": 2025, "m": 12, "ops": 6, "v": 776500}, {"y": 2026, "m": 1, "ops": 5, "v": 686450}, {"y": 2026, "m": 2, "ops": 5, "v": 579000}];
+const M2_STATS = {"by_proj":{"MOCA":{"med":2009,"n":112},"MEDRANO":{"med":2979,"n":30},"MOLDES":{"med":2781,"n":76},"AGUILAR":{"med":2666,"n":12},"LMC":{"med":3122,"n":16},"SANTA FE":{"med":3265,"n":16},"PUEYRREDON":{"med":2888,"n":4}},"by_tip":{"MONO":{"med":2398,"n":173},"3 AMB":{"med":2632,"n":33},"2 AMB":{"med":2639,"n":59},"4 AMB":{"med":2511,"n":1}},"by_year":{"2022":{"med":2110,"n":40},"2021":{"med":2248,"n":33},"2025":{"med":2947,"n":35},"2024":{"med":2687,"n":104},"2023":{"med":2496,"n":44},"2026":{"med":3463,"n":10}},"by_pt":{},"by_yt":{"2022|MONO":{"med":2014},"2022|3 AMB":{"med":2566},"2022|2 AMB":{"med":2650},"2021|MONO":{"med":2370},"2021|2 AMB":{"med":1677},"2021|3 AMB":{"med":2650},"2025|4 AMB":{"med":2511},"2024|2 AMB":{"med":2643},"2024|MONO":{"med":2846},"2024|3 AMB":{"med":2656},"2025|MONO":{"med":3095},"2025|3 AMB":{"med":2439},"2025|2 AMB":{"med":3009},"2023|MONO":{"med":2044},"2023|3 AMB":{"med":2638},"2023|2 AMB":{"med":2613},"2026|MONO":{"med":3415},"2026|2 AMB":{"med":3511}},"by_proj_year":{"MOCA|2022":{"med":1848},"MEDRANO|2022":{"med":2500},"MOLDES|2022":{"med":2720},"MOCA|2021":{"med":1765},"MOLDES|2021":{"med":2515},"MOCA|2025":{"med":2362},"MOCA|2024":{"med":2158},"MEDRANO|2024":{"med":3086},"MOLDES|2024":{"med":3172},"AGUILAR|2024":{"med":2514},"LMC|2024":{"med":3079},"SANTA FE|2025":{"med":3804},"LMC|2025":{"med":3239},"MEDRANO|2025":{"med":3095},"PUEYRREDON|2025":{"med":2583},"AGUILAR|2025":{"med":2947},"MOLDES|2025":{"med":3297},"SANTA FE|2024":{"med":2645},"MOLDES|2023":{"med":2735},"MOCA|2023":{"med":1858},"MEDRANO|2023":{"med":2554},"LMC|2023":{"med":2542},"LMC|2026":{"med":3686},"MOCA|2026":{"med":2444},"SANTA FE|2026":{"med":3583},"PUEYRREDON|2026":{"med":3415}},"top_units":[{"p":"LMC","u":"1102","tip":"2 AMB","usd_m2":4078,"v":198000,"f":"2026-02-19"},{"p":"SANTA FE","u":"1104","tip":"MONO","usd_m2":3912,"v":114200,"f":"2025-11-07"},{"p":"LMC","u":"1003","tip":"2 AMB","usd_m2":3862,"v":198500,"f":"2026-01-09"},{"p":"SANTA FE","u":"701","tip":"3 AMB","usd_m2":3809,"v":301800,"f":"2025-02-27"},{"p":"SANTA FE","u":"1002","tip":"MONO","usd_m2":3804,"v":131000,"f":"2025-05-28"},{"p":"SANTA FE","u":"702","tip":"MONO","usd_m2":3711,"v":127800,"f":"2025-05-27"},{"p":"SANTA FE","u":"1303","tip":"MONO","usd_m2":3637,"v":106000,"f":"2026-02-03"},{"p":"SANTA FE","u":"703","tip":"3 AMB","usd_m2":3586,"v":223000,"f":"2025-05-14"},{"p":"MOLDES","u":"S701","tip":"3 AMB","usd_m2":3586,"v":260000,"f":"2024-03-13"},{"p":"SANTA FE","u":"904","tip":"MONO","usd_m2":3529,"v":103000,"f":"2026-02-03"},{"p":"MOLDES","u":"S710","tip":"MONO","usd_m2":3521,"v":103700,"f":"2024-12-17"},{"p":"LMC","u":"903","tip":"2 AMB","usd_m2":3511,"v":180450,"f":"2026-01-09"},{"p":"AGUILAR","u":"601","tip":"2 AMB","usd_m2":3496,"v":160000,"f":"2025-06-06"},{"p":"SANTA FE","u":"901","tip":"3 AMB","usd_m2":3471,"v":275000,"f":"2024-11-28"},{"p":"MEDRANO","u":"4Q","tip":"MONO","usd_m2":3458,"v":83000,"f":"2025-01-15"},{"p":"PUEYRREDON","u":"503","tip":"MONO","usd_m2":3415,"v":103000,"f":"2026-02-20"},{"p":"MOLDES","u":"S803","tip":"MONO","usd_m2":3387,"v":95500,"f":"2024-05-03"},{"p":"MOLDES","u":"S906","tip":"MONO","usd_m2":3385,"v":113000,"f":"2024-11-13"},{"p":"LMC","u":"104","tip":"MONO","usd_m2":3383,"v":137700,"f":"2025-09-28"},{"p":"MOLDES","u":"S102","tip":"MONO","usd_m2":3352,"v":89500,"f":"2025-06-11"}],"total_ops_m2":266}
+
+// ── ESTADO DE CARGA ──
+let OPS = HIST_OPS, ABS = HIST_ABS, VENDEDORES_DATA = HIST_VEND, MONTHLY_DATA = HIST_MON, STOCK = HIST_STOCK;
+let DATA_SOURCE = 'histórico'; // 'live' | 'histórico' | 'cargando'
+
+// ── URL DEL APPS SCRIPT ──
+// Después del setup, reemplazar con la URL real de la implementación
+// URL guardada en el navegador (no hace falta editar el archivo)
+let APPS_SCRIPT_URL = localStorage.getItem('gd_script_url') || 'https://script.google.com/macros/s/AKfycbxRMqR4k09Yv3fhEucQkHQnKDZTOMK4BqaSQkmLaagc6f8E-5R5FzTjEtrqypJYJ4uX/exec';
+
+async function fetchLiveData() {
+  if (!APPS_SCRIPT_URL) {
+    setStatus('histórico', 'Sin URL configurada — <button onclick="openConfig()" style="margin-left:4px;padding:2px 8px;border-radius:4px;border:1px solid currentColor;background:transparent;font-size:10px;font-family:var(--mono);cursor:pointer;color:inherit">⚙ Configurar</button>');
+    return;
+  }
+  setStatus('cargando', 'Conectando con Drive...');
+  try {
+    const res = await fetch(APPS_SCRIPT_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+    
+    OPS            = (d.ops            && d.ops.length)        ? d.ops        : HIST_OPS;
+    ABS            = (d.absorcion      && d.absorcion.length)   ? d.absorcion  : HIST_ABS;
+    VENDEDORES_DATA= (d.vendedores     && d.vendedores.length)  ? d.vendedores : HIST_VEND;
+    MONTHLY_DATA   = (d.monthly        && d.monthly.length)     ? d.monthly    : HIST_MON;
+    // Stock en tiempo real (Apps Script v8): descuenta ventas del Sheet
+    if (d.stock && d.stock.length) {
+      HIST_STOCK = d.stock.map(s => {
+        const prev = HIST_STOCK.find(h => h.proyecto === s.proyecto) || {};
+        return {
+          proyecto:        s.proyecto,
+          nombre:          prev.nombre  || s.proyecto,
+          entrega:         prev.entrega || 0,
+          color:           prev.color   || '#999',
+          total:           s.total,
+          vendidas:        s.vendidas,
+          libres:          s.libres,
+          pct_vendido:     s.pct_vendido,
+          valor_remanente: s.valor_remanente,
+          by_tip:          s.by_tip
+        };
+      });
+    }
+    // Stock en tiempo real (v8): cruza ops vs STOCK_MAP en el servidor
+    if (d.stock && d.stock.length) {
+      STOCK = d.stock.map(s => {
+        const base = HIST_STOCK.find(h => h.proyecto === s.proyecto) || {};
+        return Object.assign({}, s, {
+          nombre:  base.nombre  || s.proyecto,
+          entrega: base.entrega || 0,
+        });
+      });
+    }
+    DATA_SOURCE    = 'live';
+    
+    const ts = d.timestamp ? new Date(d.timestamp) : new Date();
+    const tsLabel = ts.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+    const sourceMsg = (d.ops && d.ops.length) 
+      ? 'En vivo desde Drive · ' + d.total_ops + ' ops · actualizado ' + tsLabel
+      : 'Conectado · Sheet vacío · mostrando historial 2021–2026 · actualizado ' + tsLabel;
+    setStatus('live', sourceMsg);
+    
+    // Re-render active page with fresh data
+    render();
+    renderAbsorcion();
+    renderVendedores();
+    updateHeaderMeta();
+  } catch(err) {
+    setStatus('histórico', 'Sin conexión · mostrando datos históricos (' + err.message + ')');
+  }
+}
+
+function setStatus(type, msg) {
+  DATA_SOURCE = type;
+  const el = document.getElementById('statusBar');
+  if (!el) return;
+  const colors = {
+    live:      'background:#D8F3DC;color:#2D6A4F;border-color:#52B788',
+    histórico: 'background:#FFF0DC;color:#7A4000;border-color:#E76F00',
+    cargando:  'background:#D6E9F8;color:#1A4A7A;border-color:#2E75B6',
+  };
+  el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:8px;border:1px solid;font-size:11px;font-family:var(--mono);letter-spacing:.3px;' + (colors[type]||'');
+  const icons = { live:'🟢', histórico:'🟡', cargando:'🔵' };
+  el.innerHTML = (icons[type]||'') + ' ' + msg +
+    (type !== 'cargando' ? ' <button onclick="fetchLiveData()" style="margin-left:8px;padding:2px 8px;border-radius:4px;border:1px solid currentColor;background:transparent;font-size:10px;font-family:var(--mono);cursor:pointer;color:inherit">↺ actualizar</button>' : ' <span style="opacity:.6">...</span>');
+}
+
+function updateHeaderMeta() {
+  const lastOp = OPS.reduce((a,o)=>o.f>a?o.f:a,'');
+  const icon = DATA_SOURCE === 'live' ? '🟢' : '🟡';
+  document.getElementById('headerMeta').textContent =
+    icon + ' Última op: ' + fmtDate(lastOp) + ' · ' + OPS.length + ' ops';
+}
+
+const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+const PROJ_COLORS = {
+  'MOCA':'#4472C4','MOLDES':'#ED7D31','SANTA FE':'#2D6A4F','LMC':'#0D1B2A',
+  'IRIGOYEN 1122':'#1A4A7A','AGUILAR':'#2E75B6','MEDRANO':'#D4950A',
+  'IRIGOYEN 1428':'#7EB8E8','AREVALO':'#9DC3E6','PARAGUAY':'#52B788',
+  'PIEDRAS':'#C55A11','DEFENSA':'#7030A0','CHARCAS':'#C1121F',
+  'THAMES':'#00B0F0','PUEYRREDON':'#92D050','VIAMONTE':'#FF7C80'
+,'FINOCHIETTO 930':'#E67E22'};
+
+// ── Page switching ──
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'absorcion') renderAbsorcion();
+  if (name === 'vendedores') renderVendedores();
+  if (name === 'm2') renderM2();
+}
+
+// ── Helpers ──
+function fmtUSD(n) {
+  if (!n) return '$0';
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(2).replace(/\.?0+$/,'') + 'M';
+  if (n >= 1000) return '$' + Math.round(n/1000) + 'K';
+  return '$' + n.toLocaleString();
+}
+function fmtDate(s) { const [y,m,d] = s.split('-'); return d+'/'+m+'/'+y; }
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b)=>a-b);
+  const m = Math.floor(s.length/2);
+  return s.length%2 ? s[m] : Math.round((s[m-1]+s[m])/2);
+}
+function pct(a,b) { return b ? Math.round((a-b)/b*100) : null; }
+
+// ── Populate vendor select ──
+function populateVendSelect() {
+  const sel = document.getElementById('fVendedor');
+  if (sel.options.length > 1) return;
+  const vends = [...new Set(OPS.map(o=>o.vd))].sort();
+  vends.forEach(v => { const o = document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+}
+
+// ── Filters ──
+function getF() {
+  return {
+    anno: parseInt(document.getElementById('fAnno').value)||0,
+    mes:  parseInt(document.getElementById('fMes').value)||0,
+    proj: document.getElementById('fProyecto').value,
+    vend: document.getElementById('fVendedor').value,
+  };
+}
+function applyF(ops, f) {
+  return ops.filter(o =>
+    (!f.anno || o.y===f.anno) && (!f.mes || o.m===f.mes) &&
+    (!f.proj || o.p===f.proj) && (!f.vend || o.vd===f.vend)
+  );
+}
+function prevOps(f) {
+  if (f.anno && f.mes) {
+    let pm=f.mes-1, py=f.anno;
+    if (pm===0){pm=12;py--;}
+    return OPS.filter(o=>o.y===py&&o.m===pm&&(!f.proj||o.p===f.proj)&&(!f.vend||o.vd===f.vend));
+  }
+  if (f.anno && !f.mes)
+    return OPS.filter(o=>o.y===f.anno-1&&(!f.proj||o.p===f.proj)&&(!f.vend||o.vd===f.vend));
+  return [];
+}
+function periodLabel(f) {
+  if (f.anno && f.mes) return MESES[f.mes]+' '+f.anno;
+  if (f.anno) return 'Año '+f.anno;
+  return 'Todo el período';
+}
+function prevLabel(f) {
+  if (f.anno && f.mes) {
+    let pm=f.mes-1, py=f.anno; if(pm===0){pm=12;py--;}
+    return MESES[pm]+' '+py;
+  }
+  if (f.anno) return 'Año '+(f.anno-1);
+  return '';
+}
+
+let chartP=null, chartV=null;
+
+// ══════════════════════════════════════════════
+// RENDER — FILTRO
+// ══════════════════════════════════════════════
+function render() {
+  const f = getF();
+  const ops = applyF(OPS, f);
+  const prev = prevOps(f);
+
+  const total = ops.length;
+  const valor = ops.reduce((a,o)=>a+o.v,0);
+  const ticket = total ? Math.round(valor/total) : 0;
+  const med = median(ops.map(o=>o.v));
+  const ptotal = prev.length;
+  const pvalor = prev.reduce((a,o)=>a+o.v,0);
+
+  // KPIs
+  document.getElementById('kOps').textContent = total;
+  document.getElementById('kOpsSub').textContent = periodLabel(f);
+  document.getElementById('kValor').textContent = fmtUSD(valor);
+  document.getElementById('kValorSub').textContent = total ? total+' ops' : '';
+  document.getElementById('kTicket').textContent = fmtUSD(ticket);
+  document.getElementById('kTicketSub').textContent = total ? 'promedio' : '';
+  document.getElementById('kMediana').textContent = fmtUSD(med);
+  document.getElementById('kMedianaSub').textContent = total ? 'mediana' : '';
+
+  // Deltas
+  const dOps = pct(total, ptotal);
+  const dVal = pct(valor, pvalor);
+  const setDelta = (id, val) => {
+    const el = document.getElementById(id);
+    if (val===null||ptotal===0) { el.style.display='none'; return; }
+    el.style.display='inline-block';
+    el.textContent = (val>=0?'▲ +':'▼ ')+Math.abs(val)+'%';
+    el.className = 'kpi-delta '+(val>=0?'up':'down');
+  };
+  setDelta('kOpsDelta', dOps);
+  setDelta('kValorDelta', dVal);
+
+  // KPI card colors
+  const setKpiColor = (id, val) => {
+    const c = document.getElementById(id);
+    c.className = 'kpi' + (val===null ? '' : val>=0?' green':' red');
+  };
+  setKpiColor('kpiOps', dOps); setKpiColor('kpiValor', dVal);
+
+  // Comparison bar
+  const cb = document.getElementById('compBar');
+  if (ptotal > 0) {
+    cb.style.display = 'flex';
+    document.getElementById('compActLabel').textContent = total+' ops · '+fmtUSD(valor);
+    document.getElementById('compPrevLabel').textContent = prevLabel(f);
+    document.getElementById('compPrevVal').textContent = ptotal+' ops · '+fmtUSD(pvalor);
+    const dO = total-ptotal, dV = valor-pvalor;
+    const compDO = document.getElementById('compDiffOps');
+    const compDV = document.getElementById('compDiffVal');
+    compDO.textContent = 'Ops: '+(dO>=0?'+':'')+dO;
+    compDO.className = 'comp-diff '+(dO>=0?'up':'down');
+    compDV.textContent = 'Valor: '+(dV>=0?'+':'')+fmtUSD(Math.abs(dV));
+    compDV.className = 'comp-diff '+(dV>=0?'up':'down');
+  } else { cb.style.display='none'; }
+
+  // Chart proyectos
+  const byP={};
+  ops.forEach(o=>{byP[o.p]=(byP[o.p]||0)+1;});
+  const pLabels=Object.keys(byP).sort((a,b)=>byP[b]-byP[a]);
+  if (chartP) chartP.destroy();
+  chartP = new Chart(document.getElementById('cProj'),{
+    type:'bar',
+    data:{labels:pLabels, datasets:[{data:pLabels.map(p=>byP[p]),
+      backgroundColor:pLabels.map(p=>PROJ_COLORS[p]||'#ccc'),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,grid:{color:'#EFF3F8'},ticks:{stepSize:1,font:{family:'DM Mono',size:10}}},
+              x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:9}}}}}
+  });
+
+  // Chart vendedores
+  const byV={};
+  ops.forEach(o=>{byV[o.vd]=(byV[o.vd]||0)+1;});
+  const vLabels=Object.keys(byV).sort((a,b)=>byV[b]-byV[a]).slice(0,8);
+  if (chartV) chartV.destroy();
+  chartV = new Chart(document.getElementById('cVend'),{
+    type:'bar',
+    data:{labels:vLabels, datasets:[{data:vLabels.map(v=>byV[v]),
+      backgroundColor:vLabels.map(v=>v==='G&D Developers'?'#0D1B2A':'#7EB8E8'),
+      borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,grid:{color:'#EFF3F8'},ticks:{stepSize:1,font:{family:'DM Mono',size:10}}},
+              x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:9},maxRotation:30}}}}
+  });
+
+  // Tabla
+  const tbody = document.getElementById('opsTbody');
+  const empty = document.getElementById('opsEmpty');
+  document.getElementById('tCount').textContent = '('+total+')';
+  tbody.innerHTML='';
+  if (!total) {
+    empty.style.display=''; document.getElementById('opsTable').style.display='none';
+  } else {
+    empty.style.display='none'; document.getElementById('opsTable').style.display='';
+    [...ops].sort((a,b)=>b.f.localeCompare(a.f)).forEach((o,i)=>{
+      const bg = PROJ_COLORS[o.p]||'#999';
+      const isGyd = o.vd==='G&D Developers';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="date-cell">${fmtDate(o.f)}</td>
+        <td><span class="proj-chip" style="background:${bg}22;color:${bg}">${o.p}</span></td>
+        <td class="unit-cell">${o.u}</td>
+        <td class="val-cell">$${o.v.toLocaleString()}</td>
+        <td class="vend-cell ${isGyd?'gyd':''}">${o.vd}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function resetF() {
+  document.getElementById('fAnno').value='0';
+  document.getElementById('fMes').value='0';
+  document.getElementById('fProyecto').value='';
+  document.getElementById('fVendedor').value='';
+  render();
+}
+
+function exportCSV() {
+  const f=getF(), ops=applyF(OPS,f);
+  if (!ops.length){alert('Sin datos para exportar');return;}
+  const rows = ops.map(o=>`${fmtDate(o.f)},${o.p},${o.u},${o.v},${o.vd}`);
+  const blob = new Blob([['Fecha,Proyecto,Unidad,Valor USD,Vendedor',...rows].join('\n')],
+    {type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ops_'+( f.anno||'todo')+(f.mes?'_'+String(f.mes).padStart(2,'0'):'')+'.csv';
+  a.click();
+}
+
+// ══════════════════════════════════════════════
+// RENDER — ABSORCIÓN
+// ══════════════════════════════════════════════
+const ABS_IDS = {
+  'LMC':'absLMC','IRIGOYEN 1122':'absIR1122','SANTA FE':'absSF','AGUILAR':'absAGUILAR'
+};
+const ABS_NOMBRES = {
+  'LMC':'LMC — Belgrano/Cañitas',
+  'IRIGOYEN 1122':'Irigoyen 1122 — San Telmo',
+  'SANTA FE':'Santa Fe — Palermo',
+  'AGUILAR':'Aguilar — Belgrano'
+};
+
+function renderAbsorcion() {
+  const data = STOCK;  // array de {proyecto,nombre,entrega,total,vendidas,libres,pct_vendido,valor_remanente,by_tip}
+  if (!data || !data.length) return;
+
+  const PROJ_COLORS = {"MOCA": "#2E75B6", "LMC": "#E05252", "IRIGOYEN 1122": "#00C9A7", "SANTA FE": "#F5A623", "AGUILAR": "#9B59B6", "PUEYRREDON": "#27AE60"};
+
+  // KPIs globales
+  const totalLibres = data.reduce((a,p)=>a+p.libres,0);
+  const totalUnits  = data.reduce((a,p)=>a+p.total,0);
+  const totalRem    = data.reduce((a,p)=>a+p.valor_remanente,0);
+  const pctGlobal   = totalUnits ? Math.round((totalUnits-totalLibres)/totalUnits*100) : 0;
+  document.getElementById('stockKpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Unidades libres</div>
+      <div class="kpi-value">${totalLibres}</div>
+      <div class="kpi-sub">de ${totalUnits} totales · ${100-pctGlobal}% disponible</div></div>
+    <div class="kpi"><div class="kpi-label">Unidades vendidas</div>
+      <div class="kpi-value">${totalUnits-totalLibres}</div>
+      <div class="kpi-sub">${pctGlobal}% del portfolio</div></div>
+    <div class="kpi"><div class="kpi-label">Remanente total</div>
+      <div class="kpi-value">${fmtUSD(totalRem)}</div>
+      <div class="kpi-sub">precio de lista vigente</div></div>
+    <div class="kpi"><div class="kpi-label">Proyectos activos</div>
+      <div class="kpi-value">${data.length}</div>
+      <div class="kpi-sub">con stock disponible</div></div>
+  `;
+
+  // Cards por proyecto
+  const cardsEl = document.getElementById('stockCards');
+  cardsEl.innerHTML = data.map(p => {
+    const color = PROJ_COLORS[p.proyecto] || '#2E75B6';
+    const pctV  = p.pct_vendido;
+    const barW  = Math.round((p.vendidas/p.total)*100);
+    const tipRows = Object.entries(p.by_tip||{})
+      .sort((a,b)=>b[1].libres-a[1].libres)
+      .map(([tip,d])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f0f0f0">
+          <span style="font-size:12px;color:var(--muted)">${tip}</span>
+          <span style="font-family:var(--mono);font-size:12px">
+            <strong style="color:var(--txt)">${d.libres}</strong>
+            <span style="color:var(--muted)"> · ${fmtUSD(d.valor)}</span>
+          </span>
+        </div>`).join('');
+    return `
+    <div class="card" style="border-top:3px solid ${color}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-weight:600;font-size:14px;color:var(--navy)">${p.nombre||p.proyecto}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Entrega ~${p.entrega} meses · ${p.total} unidades</div>
+        </div>
+        <span style="font-family:var(--mono);font-size:22px;font-weight:600;color:${color}">${p.libres}</span>
+      </div>
+      <div style="background:#f0f0f0;border-radius:4px;height:6px;margin-bottom:10px">
+        <div style="background:${color};width:${barW}%;height:6px;border-radius:4px"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${pctV}% vendido · remanente ${fmtUSD(p.valor_remanente)}</div>
+      <div>${tipRows}</div>
+    </div>`;
+  }).join('');
+
+  // Tabla cruzada
+  const tips = [...new Set(data.flatMap(p=>Object.keys(p.by_tip||{})))].sort();
+  let tbl = '<thead><tr><th>Proyecto</th>';
+  tips.forEach(t => tbl += `<th style="text-align:right">${t}</th>`);
+  tbl += '<th style="text-align:right">Total</th><th style="text-align:right">Remanente</th></tr></thead><tbody>';
+  data.forEach(p => {
+    const color = PROJ_COLORS[p.proyecto]||'#2E75B6';
+    tbl += `<tr><td><span class="proj-chip" style="background:${color}22;color:${color}">${p.proyecto}</span></td>`;
+    tips.forEach(t => {
+      const d = (p.by_tip||{})[t];
+      tbl += `<td style="text-align:right;font-family:var(--mono);font-size:12px">${d ? d.libres : '—'}</td>`;
+    });
+    tbl += `<td style="text-align:right;font-family:var(--mono);font-weight:600">${p.libres}</td>`;
+    tbl += `<td style="text-align:right;font-family:var(--mono);color:var(--green)">${fmtUSD(p.valor_remanente)}</td></tr>`;
+  });
+  // Totals row
+  tbl += '<tr style="border-top:2px solid var(--border);font-weight:600"><td>TOTAL</td>';
+  tips.forEach(t => {
+    const tot = data.reduce((a,p)=>a+((p.by_tip||{})[t]?.libres||0),0);
+    tbl += `<td style="text-align:right;font-family:var(--mono)">${tot||'—'}</td>`;
+  });
+  tbl += `<td style="text-align:right;font-family:var(--mono)">${totalLibres}</td>`;
+  tbl += `<td style="text-align:right;font-family:var(--mono);color:var(--green)">${fmtUSD(totalRem)}</td></tr>`;
+  tbl += '</tbody>';
+  document.getElementById('stockTable').innerHTML = tbl;
+}
+
+// ══════════════════════════════════════════════
+// RENDER — VENDEDORES
+// ══════════════════════════════════════════════
+let chartVPie=null, chartVM=null;
+
+function renderVendedores() {
+  const totalOps = VENDEDORES_DATA.reduce((a,v)=>a+v.ops,0);
+  const totalVal = VENDEDORES_DATA.reduce((a,v)=>a+v.valor,0);
+  const gyd = VENDEDORES_DATA.find(v=>v.vd==='G&D Developers')||{ops:0,valor:0};
+  const brokers = totalOps - gyd.ops;
+
+  // KPIs
+  document.getElementById('vendKpis').innerHTML = `
+    <div style="grid-column:1/-1;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 14px;font-size:12px;color:#666;margin-bottom:4px">
+      ⚠️ Las 70 operaciones de 2021 no tienen dato de vendedor registrado y se atribuyen a G&amp;D por defecto.
+      Para comparar con el Dashboard (que muestra 2022–2026): G&amp;D tiene ${gyd.ops - 70} ops con vendedor confirmado desde 2022.
+    </div>
+    <div class="kpi"><div class="kpi-label">Ops G&amp;D (interno)</div>
+      <div class="kpi-value">${gyd.ops}</div>
+      <div class="kpi-sub">${Math.round(gyd.ops/totalOps*100)}% del total · $${Math.round(gyd.valor/gyd.ops/1000)}K promedio</div>
+    </div>
+    <div class="kpi"><div class="kpi-label">Ops brokers externos</div>
+      <div class="kpi-value">${brokers}</div>
+      <div class="kpi-sub">${Math.round(brokers/totalOps*100)}% del total · ${VENDEDORES_DATA.length-1} brokers distintos</div>
+    </div>
+    <div class="kpi"><div class="kpi-label">Total operaciones</div>
+      <div class="kpi-value">${totalOps}</div>
+      <div class="kpi-sub">2021–2026 · todos los proyectos</div>
+    </div>
+    <div class="kpi"><div class="kpi-label">Valor total portfolio</div>
+      <div class="kpi-value">${fmtUSD(totalVal)}</div>
+      <div class="kpi-sub">cierre efectivo en USD</div>
+    </div>
+  `;
+
+  // Ranking
+  const maxOps = VENDEDORES_DATA[0].ops;
+  const rankHtml = VENDEDORES_DATA.map((v,i) => {
+    const isGyd = v.vd==='G&D Developers';
+    const w = Math.round(v.ops/maxOps*100);
+    return `<div class="vend-row">
+      <div class="vend-rank">${i+1}</div>
+      <div class="vend-name ${isGyd?'gyd':''}">${v.vd}</div>
+      <div class="vend-bar-wrap">
+        <div class="vend-bar-bg"><div class="vend-bar-fill ${isGyd?'gyd':''}" style="width:${w}%"></div></div>
+      </div>
+      <div class="vend-stat"><strong>${v.ops}</strong> ops</div>
+      <div class="vend-stat">${fmtUSD(v.valor)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('vendRanking').innerHTML = rankHtml;
+
+  // Pie chart
+  if (chartVPie) chartVPie.destroy();
+  chartVPie = new Chart(document.getElementById('cVendPie'),{
+    type:'doughnut',
+    data:{
+      labels:['G&D Developers','Brokers externos'],
+      datasets:[{data:[gyd.ops, brokers],
+        backgroundColor:['#0D1B2A','#7EB8E8'],
+        borderWidth:0, hoverOffset:8}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{family:'DM Mono',size:11},padding:16}},
+               tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.raw+' ops ('+Math.round(ctx.raw/totalOps*100)+'%)'}}}}
+  });
+
+  // Monthly ops chart
+  const months = MONTHLY_DATA.map(m=>MESES[m.m].slice(0,3)+' '+String(m.y).slice(2));
+  const mOps   = MONTHLY_DATA.map(m=>m.ops);
+  if (chartVM) chartVM.destroy();
+  chartVM = new Chart(document.getElementById('cVendMensual'),{
+    type:'bar',
+    data:{labels:months, datasets:[{label:'Ops',data:mOps,
+      backgroundColor:'#2E75B6',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,grid:{color:'#EFF3F8'},ticks:{font:{family:'DM Mono',size:10}}},
+              x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:9},maxRotation:45,maxTicksLimit:24}}}}
+  });
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  populateVendSelect();
+  render();
+  updateHeaderMeta();
+  // Intentar datos en vivo desde Drive
+  fetchLiveData();
+});
+
+
+// ══════════════════════════════════════════════
+// RENDER — USD/m²
+// ══════════════════════════════════════════════
+let cM2Proj=null, cM2Tip=null, cM2Year=null, cM2ProjEvol=null;
+
+function renderM2() {
+  const s = M2_STATS;
+
+  // KPIs
+  const latestYear = Math.max(...Object.keys(s.by_year).map(Number));
+  const latestMed  = s.by_year[latestYear] ? s.by_year[latestYear].med : 0;
+  const prevMed    = s.by_year[latestYear-1] ? s.by_year[latestYear-1].med : 0;
+  const delta      = prevMed ? Math.round((latestMed-prevMed)/prevMed*100) : null;
+  const topProj    = Object.entries(s.by_proj).sort((a,b)=>b[1].med-a[1].med)[0];
+  const topTip     = Object.entries(s.by_tip).sort((a,b)=>b[1].med-a[1].med)[0];
+
+  document.getElementById('m2Kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">USD/m² global (mediana)</div>
+      <div class="kpi-value">$${latestMed.toLocaleString()}</div>
+      <div class="kpi-sub">${latestYear} · ${s.by_year[latestYear]?.n||0} ops con m²</div>
+      ${delta!==null?`<div class="kpi-delta ${delta>=0?'up':'down'}">${delta>=0?'▲ +':'▼ '}${Math.abs(delta)}% vs ${latestYear-1}</div>`:''}
+    </div>
+    <div class="kpi"><div class="kpi-label">Proyecto más alto</div>
+      <div class="kpi-value">$${topProj[1].med.toLocaleString()}</div>
+      <div class="kpi-sub">${topProj[0]} · ${topProj[1].n} ops</div>
+    </div>
+    <div class="kpi"><div class="kpi-label">Tipología más alta</div>
+      <div class="kpi-value">$${topTip[1].med.toLocaleString()}</div>
+      <div class="kpi-sub">${topTip[0]} · ${topTip[1].n} ops</div>
+    </div>
+    <div class="kpi"><div class="kpi-label">Ops con m² calculado</div>
+      <div class="kpi-value">${s.total_ops_m2}</div>
+      <div class="kpi-sub">de 440 históricas (${Math.round(s.total_ops_m2/440*100)}%)</div>
+    </div>
+  `;
+
+  // Chart por proyecto
+  const projLabels = Object.keys(s.by_proj).sort((a,b)=>s.by_proj[b].med-s.by_proj[a].med);
+  const projVals   = projLabels.map(p=>s.by_proj[p].med);
+  const projColors = projLabels.map(p=>PROJ_COLORS[p]||'#7EB8E8');
+  if (cM2Proj) cM2Proj.destroy();
+  cM2Proj = new Chart(document.getElementById('cM2Proj'),{
+    type:'bar',
+    data:{labels:projLabels, datasets:[{data:projVals, backgroundColor:projColors, borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' $'+ctx.raw.toLocaleString()+'/m²  ('+s.by_proj[projLabels[ctx.dataIndex]].n+' ops)'}}},
+      scales:{y:{beginAtZero:false,min:1500,ticks:{font:{family:'DM Mono',size:10},callback:v=>'$'+v.toLocaleString()}},
+        x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10}}}}}
+  });
+
+  // Chart por tipología
+  const tipOrder  = ['MONO','2 AMB','3 AMB','4 AMB'];
+  const tipLabels = tipOrder.filter(t=>s.by_tip[t]);
+  const tipColors = ['#2E75B6','#52B788','#E76F00','#9DC3E6'];
+  if (cM2Tip) cM2Tip.destroy();
+  cM2Tip = new Chart(document.getElementById('cM2Tip'),{
+    type:'bar',
+    data:{labels:tipLabels, datasets:[{data:tipLabels.map(t=>s.by_tip[t].med), backgroundColor:tipColors, borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' $'+ctx.raw.toLocaleString()+'/m²  ('+s.by_tip[tipLabels[ctx.dataIndex]].n+' ops)'}}},
+      scales:{y:{beginAtZero:false,min:1500,ticks:{font:{family:'DM Mono',size:10},callback:v=>'$'+v.toLocaleString()}},
+        x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:11}}}}}
+  });
+
+  // Chart evolución año x tipología (global)
+  const years = Object.keys(s.by_year).map(Number).sort();
+  const tips  = ['MONO','2 AMB','3 AMB'];
+  const tipColors2 = {'MONO':'#2E75B6','2 AMB':'#52B788','3 AMB':'#E76F00'};
+  if (cM2Year) cM2Year.destroy();
+  cM2Year = new Chart(document.getElementById('cM2Year'),{
+    type:'line',
+    data:{labels:years, datasets:tips.map(t=>({
+      label:t, data:years.map(y=>(s.by_yt[y+'|'+t]||{med:null}).med),
+      borderColor:tipColors2[t], backgroundColor:tipColors2[t]+'33',
+      tension:.4, fill:false, pointRadius:5, pointHoverRadius:7,
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{family:'DM Mono',size:11},padding:16}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': $'+(ctx.raw||'—').toLocaleString()+'/m²'}}},
+      scales:{y:{beginAtZero:false,min:1200,ticks:{font:{family:'DM Mono',size:10},callback:v=>'$'+v.toLocaleString()}},
+        x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10}}}}}
+  });
+
+  // Evolución por proyecto (líneas)
+  const allProjs = Object.keys(s.by_proj).sort();
+  const projColorMap = {};
+  allProjs.forEach((p,i)=>{projColorMap[p]=PROJ_COLORS[p]||['#1F3864','#2E75B6','#52B788','#E76F00','#9DC3E6','#C55A11','#7F7F7F'][i%7];});
+  if (cM2ProjEvol) cM2ProjEvol.destroy();
+  cM2ProjEvol = new Chart(document.getElementById('cM2ProjEvol'),{
+    type:'line',
+    data:{labels:years, datasets:allProjs.map(p=>({
+      label:p,
+      data:years.map(y=>(s.by_proj_year[p+'|'+y]||{med:null}).med),
+      borderColor:projColorMap[p], backgroundColor:projColorMap[p]+'22',
+      tension:.4, fill:false, pointRadius:4, pointHoverRadius:7,
+      borderWidth:2,
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{family:'DM Mono',size:10},padding:12,boxWidth:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': $'+(ctx.raw||'—').toLocaleString()+'/m²'}}},
+      scales:{y:{beginAtZero:false,min:1200,ticks:{font:{family:'DM Mono',size:10},callback:v=>'$'+v.toLocaleString()}},
+        x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10}}}}}
+  });
+
+  // Ranking table
+  const tbody = document.getElementById('m2RankBody');
+  tbody.innerHTML = '';
+  s.top_units.forEach((u,i)=>{
+    const bg = PROJ_COLORS[u.p]||'#999';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="date-cell" style="text-align:center">${i+1}</td>
+      <td><span class="proj-chip" style="background:${bg}22;color:${bg}">${u.p}</span></td>
+      <td class="unit-cell">${u.u}</td>
+      <td style="font-size:12px">${u.tip||'—'}</td>
+      <td class="val-cell" style="color:var(--green);font-weight:700">$${u.usd_m2.toLocaleString()}</td>
+      <td class="val-cell">$${u.v.toLocaleString()}</td>
+      <td class="date-cell">${u.f.split('-').reverse().join('/')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+</script>
+
+<!-- ── CONFIG MODAL ── -->
+<div id="configModal" style="display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:32px;width:90%;max-width:520px;box-shadow:0 20px 60px #0003;font-family:var(--sans)">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Configuración</div>
+    <div style="font-size:18px;font-weight:600;color:var(--navy);margin-bottom:20px">Conectar con Google Drive</div>
+
+    <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;background:var(--bg);border-radius:8px;padding:14px">
+      <strong style="color:var(--txt)">Pasos para obtener la URL:</strong><br>
+      1. Abrí el Google Sheet de operaciones<br>
+      2. Extensiones → Apps Script → pegá el script → Guardar<br>
+      3. Implementar → Nueva implementación → Aplicación web<br>
+      4. Ejecutar como: <em>tu cuenta</em> · Acceso: <em>Cualquier persona</em><br>
+      5. Copiá la URL que aparece y pegala acá abajo
+    </div>
+
+    <label style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:6px">URL del Apps Script</label>
+    <input id="urlInput" type="text" placeholder="https://script.google.com/macros/s/..." 
+      style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:var(--mono);font-size:12px;outline:none;color:var(--txt);margin-bottom:16px"
+      onkeydown="if(event.key==='Enter')saveConfig()">
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeConfig()" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-family:var(--sans);font-size:13px;cursor:pointer;color:var(--muted)">Cancelar</button>
+      <button onclick="saveConfig()" style="padding:8px 20px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer">Conectar</button>
+    </div>
+
+    <div id="configError" style="display:none;margin-top:12px;font-size:12px;color:var(--red);font-family:var(--mono)"></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- PÁGINA 4 — USD/m²                                  -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="page" id="page-m2">
+
+  <!-- KPIs globales -->
+  <div class="kpi-grid" style="margin-bottom:16px" id="m2Kpis"></div>
+
+  <!-- Comparativa por proyecto + por tipología -->
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">USD/m² mediana — por proyecto</div>
+      <div class="cw"><canvas id="cM2Proj"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">USD/m² mediana — por tipología</div>
+      <div class="cw"><canvas id="cM2Tip"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Evolución por año -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Evolución USD/m² por año — mediana por tipología</div>
+    <div class="cw"><canvas id="cM2Year"></canvas></div>
+  </div>
+
+
+  <!-- Evolución USD/m² por proyecto -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Evolución USD/m² por proyecto — mediana anual</div>
+    <div class="cw" style="height:280px"><canvas id="cM2ProjEvol"></canvas></div>
+  </div>
+  <!-- Ranking unidades -->
+  <div class="card">
+    <div class="card-title">Top 20 unidades — mayor USD/m² histórico</div>
+    <div style="overflow-x:auto">
+      <table class="ops-table" id="m2RankTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Proyecto</th>
+            <th>Unidad</th>
+            <th>Tipología</th>
+            <th style="text-align:right">USD/m²</th>
+            <th style="text-align:right">Valor</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody id="m2RankBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+</body>
